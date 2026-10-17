@@ -1,0 +1,30 @@
+supabase-config.js
+node_modules/
+dist/
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+
+# Local secrets and environment-specific credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.keystore
+*.jks
+credentials.json
+secrets.*
+
+# Local Supabase state and generated client configuration
+supabase/.temp/
+supabase/.branches/
+**/supabase-config.js
+
+# Generated web and native build output
+coverage/
+*.apk
+*.aab
+*.aar

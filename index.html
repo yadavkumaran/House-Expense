@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f2ed">
+  <title>Hearth — household expenses</title>
+  <meta name="description" content="A calmer way to manage shared household expenses.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/hearth-192.png" type="image/png" sizes="192x192">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="./icons/hearth-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./calendar-feature/calendar.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="pwa-tools" aria-label="App status and installation">
+      <div id="pwa-status" class="pwa-status" role="status" aria-live="polite"></div>
+      <div class="pwa-actions" aria-label="App installation and updates">
+        <button id="install-app" class="button soft hidden" type="button">Install Hearth</button>
+        <button id="update-app" class="button soft hidden" type="button">Update available · Reload</button>
+      </div>
+    </div>
+    <div id="app" aria-live="polite"></div>
+  </main>
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./pwa.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

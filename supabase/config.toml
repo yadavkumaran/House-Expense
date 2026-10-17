@@ -1,0 +1,4 @@
+project_id = "hearth"
+
+[functions.transcribe-expense]
+verify_jwt = true

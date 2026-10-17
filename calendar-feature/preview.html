@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Hearth · Calendar feature preview</title>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="./calendar.css">
+  <style>
+    body { min-height: 100vh; }
+    .calendar-preview { width: min(760px, 100%); margin: 0 auto; padding: 28px 16px 48px; }
+    .calendar-preview__notice { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 13px; }
+    .calendar-preview__controls { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 12px; }
+    .calendar-preview__controls button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
+  </style>
+</head>
+<body>
+  <main class="calendar-preview">
+    <p class="calendar-preview__notice">Standalone feature preview. The displayed transactions are illustrative only and are not connected to a Hearth account.</p>
+    <div class="calendar-preview__controls">
+      <button type="button" data-language="en-IN">English</button>
+      <button type="button" data-language="ta-IN">தமிழ்</button>
+    </div>
+    <div id="calendar"></div>
+  </main>
+  <script type="module">
+    import { localMonthKey, mountExpenseCalendar } from "./calendar.js";
+
+    const today = new Date();
+    const month = localMonthKey(today);
+    const day = today.getDate();
+    const isoDay = offset => {
+      const date = new Date(today.getFullYear(), today.getMonth(), Math.max(1, day + offset));
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    };
+    const demoExpenses = [
+      { occurred_on: isoDay(0), amount: 250, description: "Groceries" },
+      { occurred_on: isoDay(0), amount: 48.5, description: "Milk" },
+      { occurred_on: isoDay(-2), amount: 800, description: "Electricity bill" },
+      { occurred_on: isoDay(-5), amount: 150, description: "Petrol" }
+    ].filter(expense => expense.occurred_on.startsWith(`${month}-`));
+
+    let unmount = mountExpenseCalendar(document.querySelector("#calendar"), {
+      expenses: demoExpenses,
+      month,
+      locale: "en-IN"
+    });
+
+    document.querySelectorAll("[data-language]").forEach(button => button.addEventListener("click", () => {
+      unmount();
+      unmount = mountExpenseCalendar(document.querySelector("#calendar"), {
+        expenses: demoExpenses,
+        month: document.querySelector("[data-calendar-month]")?.value || month,
+        locale: button.dataset.language
+      });
+      document.documentElement.lang = button.dataset.language.startsWith("ta") ? "ta" : "en";
+    }));
+  </script>
+</body>
+</html>
