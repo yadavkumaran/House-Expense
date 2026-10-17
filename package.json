@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/voice.test.js tests/transcription.test.js tests/accounting.test.js tests/crud_and_safety.test.js calendar-feature/calendar.test.js",
+    "test": "node --test tests/voice.test.js tests/transcription.test.js tests/accounting.test.js tests/crud_and_safety.test.js calendar-feature/calendar.test.js tests/build_config.test.js",
     "build:web": "node scripts/prepare-web.mjs",
     "android:add": "npm run build:web && cap add android",
     "android:sync": "npm run build:web && cap sync android",

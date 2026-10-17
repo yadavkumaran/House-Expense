@@ -12,6 +12,10 @@ A responsive household expense tracker that uses Supabase Auth and Postgres. Hea
 
 The Supabase schema enforces household-level row security. Keep RLS enabled, and never expose a service-role key in the browser. For production, configure Supabase Auth email confirmation and allowed redirect URLs for the deployed origin.
 
+### Netlify build configuration
+
+Set the Netlify build environment variables `SUPABASE_URL` and `SUPABASE_ANON_KEY` to the project URL and public anon/publishable key. Netlify runs `npm run build:web`; when no local `supabase-config.js` exists, the build safely generates `dist/supabase-config.js` from those variables and fails with the missing variable names if either is empty. The generated file uses JavaScript string serialization and is build output only. Local builds continue to copy an existing, ignored `supabase-config.js` without requiring or overwriting environment-specific local configuration. Never set a service-role key or provider API key as `SUPABASE_ANON_KEY`.
+
 ## Voice expense entry
 
 Open **Add expense → Voice entry**, choose English or Tamil, allow microphone access, and record up to 60 seconds. Before transcription, explicitly agree to send that recording to Groq. Hearth uploads it to an authenticated Supabase Edge Function, which verifies the Supabase user and transcribes it with Groq's `whisper-large-v3-turbo` model. Recordings are held in memory only and are not saved as expenses. You can cancel, retry, or continue manually.

@@ -1,6 +1,7 @@
 import { copyFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareSupabaseConfig } from "./supabase-config.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const output = join(root, "dist");
@@ -12,11 +13,12 @@ const files = [
   "pwa.js",
   "service-worker.js",
   "styles.css",
-  "manifest.webmanifest",
-  "supabase-config.js"
+  "manifest.webmanifest"
 ];
 
 await mkdir(output, { recursive: true });
+await prepareSupabaseConfig({ root, output });
+
 for (const file of files) {
   try {
     await copyFile(join(root, file), join(output, file));
