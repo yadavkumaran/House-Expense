@@ -12,6 +12,12 @@ import {
   calculateBudgetStatus
 } from "./accounting.js";
 import { queryRows } from "./query-results.js";
+import { hasHouseholdOwnerRole } from "./household-permissions.js";
+import {
+  CURRENT_APP_VERSION,
+  GITHUB_RELEASES_API,
+  getApkReleaseUpdate
+} from "./apk-updater.js";
 
 const app = document.querySelector("#app");
 const modalRoot = document.querySelector("#modal-root");
@@ -68,6 +74,13 @@ const T = {
     contribute: "Record contribution", noGoals: "No savings goals yet.",
     exportCsv: "Download CSV", printPdf: "Print / PDF", audit: "Activity log",
     language: "Language", english: "English", tamil: "தமிழ்", signOut: "Sign out",
+    appUpdates: "App updates", installedVersion: "Installed version {version}",
+    updateHelp: "Check the public GitHub release for a newer Android APK.",
+    checkUpdates: "Check for updates", checkingUpdates: "Checking…",
+    releaseNotFound: "No public latest release was found. The GitHub repository must be public and have a published stable APK release.",
+    appUpToDate: "House Expense is up to date.",
+    updateAvailable: "Version {version} is available. Download the APK and open it to install the update. Android may ask you to confirm; uninstalling should not be needed.",
+    downloadUpdate: "Open APK download",
     budgetTitle: "Category budgets", addBudget: "Save budget", voice: "Voice entry",
     receiptDuplicate: "Possible duplicate receipt. Compare matching transaction before saving.",
     duplicate: "Possible duplicate", close: "Close", back: "Back", loading: "Loading your household…",
@@ -195,6 +208,13 @@ const T = {
     deadline: "கடைசி நாள்", contribute: "சேமிப்பைப் பதிவு செய்", noGoals: "சேமிப்பு இலக்குகள் இல்லை.",
     exportCsv: "CSV பதிவிறக்கு", printPdf: "PDF அச்சிடு", audit: "செயல்பாட்டுப் பதிவு",
     language: "மொழி", english: "English", tamil: "தமிழ்", signOut: "வெளியேறு",
+    appUpdates: "செயலி புதுப்பிப்பு", installedVersion: "நிறுவிய பதிப்பு {version}",
+    updateHelp: "புதிய Android APK-ஐ பொது GitHub வெளியீட்டில் சரிபார்க்கவும்.",
+    checkUpdates: "புதுப்பிப்புகளைச் சரிபார்", checkingUpdates: "சரிபார்க்கிறது…",
+    releaseNotFound: "பொது சமீபத்திய வெளியீடு இல்லை. GitHub களஞ்சியம் பொதுவாகவும் நிலையான APK வெளியீடு வெளியிடப்பட்டதாகவும் இருக்க வேண்டும்.",
+    appUpToDate: "House Expense ஏற்கனவே புதுப்பித்த நிலையில் உள்ளது.",
+    updateAvailable: "பதிப்பு {version} கிடைக்கிறது. APK-ஐ பதிவிறக்கி திறந்து நிறுவவும். Android உறுதிப்படுத்தக் கேட்கலாம்; செயலியை நீக்கத் தேவையில்லை.",
+    downloadUpdate: "APK பதிவிறக்கத்தைத் திற",
     budgetTitle: "வரவுசெலவுத் திட்டம்", addBudget: "வரம்பைச் சேமி", voice: "குரல் பதிவு",
     receiptDuplicate: "இதேபோன்ற ரசீது உள்ளது.", duplicate: "நகல் இருக்கலாம்", close: "மூடு", back: "திரும்பு",
     loading: "விவரங்கள் ஏற்றப்படுகின்றன…", noComparison: "ஒப்பீடு செய்ய தரவு இல்லை.", budgetNotSet: "செலவு வரம்புகளை அமைக்கவும்.",
@@ -358,6 +378,10 @@ const state = {
   receiptUrl: null,
   voice: null
 };
+
+function isHouseholdOwner() {
+  return hasHouseholdOwnerRole(state.members, state.user?.id);
+}
 
 let voiceSequence = 0;
 
@@ -581,9 +605,9 @@ function renderHome() {
   const recent = state.expenses.filter(e => !e.deleted_at).slice(0, 6);
   const soon = state.bills.filter(b => !b.deleted_at && b.active && b.next_due <= localIsoDate(new Date(Date.now() + 7 * 86400000))).slice(0, 3);
   const pendingGroceries = state.shopping.filter(i => !i.deleted_at && !i.purchased).length;
-  const reimbursements = calculatePersonalReimbursements({
+  const reimbursements = isHouseholdOwner() ? calculatePersonalReimbursements({
     members: state.members, expenses: state.expenses, settlements: state.settlements, currentUserId: state.user.id
-  });
+  }) : [];
   const totalOwed = reimbursements.reduce((sum, r) => sum + r.outstanding, 0);
 
   return `
@@ -744,11 +768,12 @@ function renderHome() {
 
 // 2. TRANSACTIONS VIEW (LEDGER + ALL TRANSACTIONS)
 function renderLedger() {
-  const isSettlements = state.ledgerSubtab === "settlements";
-  const personal = calculatePersonalReimbursements({
+  const isOwner = isHouseholdOwner();
+  const isSettlements = isOwner && state.ledgerSubtab === "settlements";
+  const personal = isOwner ? calculatePersonalReimbursements({
     members: state.members, expenses: state.expenses, settlements: state.settlements, currentUserId: state.user.id
-  });
-  const settled = state.settlements.filter(s => !s.deleted_at);
+  }) : [];
+  const settled = isOwner ? state.settlements.filter(s => !s.deleted_at) : [];
 
   // Filtered transactions logic
   let filtered = state.expenses.filter(e => !e.deleted_at);
@@ -804,7 +829,7 @@ function renderLedger() {
 
     <div class="pill-tabs">
       <button class="${!isSettlements ? "on" : ""}" data-action="ledger-tab" data-value="all">${tr("allTransactions")}</button>
-      <button class="${isSettlements ? "on" : ""}" data-action="ledger-tab" data-value="settlements">${tr("reimbursementsTab")} ${personal.length ? `(${personal.length})` : ""}</button>
+      ${isOwner ? `<button class="${isSettlements ? "on" : ""}" data-action="ledger-tab" data-value="settlements">${tr("reimbursementsTab")} ${personal.length ? `(${personal.length})` : ""}</button>` : ""}
     </div>
 
     ${!isSettlements ? `
@@ -873,7 +898,7 @@ function renderLedger() {
     ` : `
       <section class="panel">
         <h3>${tr("personalPayments")}</h3>
-        <p class="small muted">${tr("ledgerExplain")} ${tr("reimbursementNote")}</p>
+        <p class="small muted">As household owner, reimburse members for eligible expenses they paid from personal funds. Confirm you have paid them before recording a payment.</p>
 
         ${personal.length ? personal.map(item => `
           <div class="card" style="margin:12px 0;">
@@ -889,7 +914,7 @@ function renderLedger() {
             </div>
             ${item.outstanding ? `
               <div style="margin-top:12px;">
-                <button class="button primary sm" data-action="settle-dialog" data-user="${esc(item.member.user_id)}" data-amount="${item.outstanding}" data-name="${esc(item.member.name)}">Record settlement</button>
+                <button class="button primary sm" data-action="settle-dialog" data-user="${esc(item.member.user_id)}" data-amount="${item.outstanding}" data-name="${esc(item.member.name)}">Pay ${money(item.outstanding)} to ${esc(item.member.name)}</button>
               </div>
             ` : ""}
           </div>
@@ -906,7 +931,7 @@ function renderLedger() {
                 </div>
                 <div class="right" style="display:flex; align-items:center; gap:8px;">
                   <span class="money">${money(s.amount)}</span>
-                  <button class="button sm danger" data-action="reverse-settlement" data-id="${s.id}" title="${tr("reverseSettlement")}">×</button>
+                  ${isOwner ? `<button class="button sm danger" data-action="reverse-settlement" data-id="${s.id}" title="${tr("reverseSettlement")}">×</button>` : ""}
                 </div>
               </div>
             `).join("")}
@@ -1235,6 +1260,13 @@ function renderHousehold() {
         </select></label>
         <button class="button primary" style="margin-top:12px;">${tr("save")}</button>
       </form>
+    </section>
+
+    <section class="panel">
+      <h3>${tr("appUpdates")}</h3>
+      <p class="small muted">${tx("installedVersion", { version: CURRENT_APP_VERSION })}</p>
+      <p class="small muted">${tr("updateHelp")}</p>
+      <button class="button soft" type="button" data-action="check-app-update">${tr("checkUpdates")}</button>
     </section>
 
     <div style="margin-top:16px;">
@@ -2314,8 +2346,8 @@ function showGoalForm(goalId) {
 
 // SETTLEMENT DIALOG
 function showSettlementDialog({ user_id, name, amount }) {
-  modal("Record reimbursement", `
-    <p>Confirm repayment to <strong>${esc(name)}</strong></p>
+  modal(`Pay ${money(amount)} to ${esc(name)}`, `
+    <p>Record this only after you have paid <strong>${esc(name)}</strong>. The app records the payment; it does not transfer money.</p>
     <form data-form="settlement" data-user="${esc(user_id)}">
       <label class="field-label">${tr("amount")} (₹)
         <input class="field" name="amount" type="number" min="0.01" step="0.01" value="${amount}" max="${amount}" required>
@@ -2326,7 +2358,7 @@ function showSettlementDialog({ user_id, name, amount }) {
       <label class="field-label">${tr("notes")}
         <input class="field" name="notes" placeholder="e.g. Paid via UPI" maxlength="100">
       </label>
-      <button class="button primary" style="margin-top:14px;">Confirm settlement</button>
+      <button class="button primary" style="margin-top:14px;">Confirm payment</button>
     </form>
   `);
 }
@@ -2655,6 +2687,7 @@ async function handleForm(event) {
     }
 
     case "settlement": {
+      if (!isHouseholdOwner()) throw new Error("Only the household owner can record reimbursements.");
       const toUser = form.dataset.user;
       const amount = Number(value("amount"));
       const settledOn = value("settled_on") || today();
@@ -2774,6 +2807,37 @@ async function handleAction(button) {
       window.scrollTo({ top: 0, behavior: "smooth" });
       break;
 
+    case "check-app-update": {
+      button.disabled = true;
+      button.textContent = tr("checkingUpdates");
+      try {
+        const response = await fetch(GITHUB_RELEASES_API, {
+          headers: { Accept: "application/vnd.github+json" },
+          cache: "no-store"
+        });
+        if (!response.ok) {
+          if (response.status === 404) throw new Error(tr("releaseNotFound"));
+          throw new Error(`Could not check GitHub releases (HTTP ${response.status}).`);
+        }
+        const release = await response.json();
+        const update = getApkReleaseUpdate(release);
+        if (!update.hasUpdate) {
+          flash(tr("appUpToDate"));
+          break;
+        }
+        modal(tr("appUpdates"), `
+          <p>${esc(tx("updateAvailable", { version: update.version }))}</p>
+          <a class="button primary" href="${esc(update.downloadUrl)}">${tr("downloadUpdate")}</a>
+        `);
+      } finally {
+        if (button.isConnected) {
+          button.disabled = false;
+          button.textContent = tr("checkUpdates");
+        }
+      }
+      break;
+    }
+
     case "calendar-day":
       state.calendarSelectedDate = button.dataset.value;
       render();
@@ -2787,7 +2851,7 @@ async function handleAction(button) {
       break;
 
     case "ledger-tab":
-      state.ledgerSubtab = button.dataset.value;
+      state.ledgerSubtab = button.dataset.value === "settlements" && isHouseholdOwner() ? "settlements" : "all";
       render();
       break;
 
@@ -2910,6 +2974,7 @@ async function handleAction(button) {
       break;
 
     case "settle-dialog":
+      if (!isHouseholdOwner()) throw new Error("Only the household owner can pay reimbursements.");
       showSettlementDialog({
         user_id: button.dataset.user,
         name: button.dataset.name,
@@ -2918,6 +2983,7 @@ async function handleAction(button) {
       break;
 
     case "reverse-settlement": {
+      if (!isHouseholdOwner()) throw new Error("Only the household owner can reverse a reimbursement.");
       const settlement = state.settlements.find(s => s.id === id);
       if (!settlement) return;
 

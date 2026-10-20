@@ -1,6 +1,34 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { queryRows } from "../query-results.js";
+import { hasHouseholdOwnerRole } from "../household-permissions.js";
+
+test("only a household owner can manage reimbursements", () => {
+  const members = [
+    { user_id: "owner-1", role: "owner" },
+    { user_id: "member-1", role: "member" }
+  ];
+
+  assert.equal(hasHouseholdOwnerRole(members, "owner-1"), true);
+  assert.equal(hasHouseholdOwnerRole(members, "member-1"), false);
+  assert.equal(hasHouseholdOwnerRole(members, "unknown"), false);
+});
+
+test("database limits reimbursement creation and reversal to household owners", async () => {
+  const schema = await readFile(new URL("../supabase/schema.sql", import.meta.url), "utf8");
+  const migration = await readFile(
+    new URL("../supabase/migrations/20261020000002_owner_only_reimbursements.sql", import.meta.url),
+    "utf8"
+  );
+
+  for (const sql of [schema, migration]) {
+    assert.match(sql, /if not public\.is_household_owner\(household\)/i);
+    assert.match(sql, /revoke insert,\s*update on public\.settlements from authenticated/i);
+    assert.match(sql, /drop policy if exists "members add settlements"/i);
+    assert.match(sql, /create policy "owners delete settlements"/i);
+  }
+});
 
 test("household refresh accepts both paginated arrays and Supabase query responses", () => {
   const expenses = [{ id: "expense-1", amount: 25 }];

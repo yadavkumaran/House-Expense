@@ -228,6 +228,9 @@ declare
   total_returned numeric;
   outstanding numeric;
 begin
+  if not public.is_household_owner(household) then
+    raise exception 'Only the household owner can record reimbursements';
+  end if;
   if not public.is_household_member(household) or not exists (select 1 from public.household_members where household_id = household and user_id = other_user) then
     raise exception 'Settlement members must belong to this household';
   end if;
@@ -362,10 +365,7 @@ create policy "members manage contributions" on public.savings_contributions for
 drop policy if exists "members read settlements" on public.settlements;
 create policy "members read settlements" on public.settlements for select to authenticated using (public.is_household_member(household_id));
 drop policy if exists "members add settlements" on public.settlements;
-create policy "members add settlements" on public.settlements for insert to authenticated with check (
-  public.is_household_member(household_id) and created_by = auth.uid() and from_user = auth.uid() and
-  exists (select 1 from public.household_members m where m.household_id = settlements.household_id and m.user_id = settlements.to_user)
-);
+drop policy if exists "members update settlements" on public.settlements;
 drop policy if exists "members read activity" on public.activity_events;
 create policy "members read activity" on public.activity_events for select to authenticated using (public.is_household_member(household_id));
 
@@ -520,8 +520,8 @@ create policy "members update settlements" on public.settlements for update to a
   using (public.is_household_member(household_id)) with check (public.is_household_member(household_id));
 
 drop policy if exists "members delete settlements" on public.settlements;
-create policy "members delete settlements" on public.settlements for delete to authenticated
-  using (public.is_household_member(household_id));
+create policy "owners delete settlements" on public.settlements for delete to authenticated
+  using (public.is_household_owner(household_id));
 
 drop policy if exists "owners delete household" on public.households;
 create policy "owners delete household" on public.households for delete to authenticated

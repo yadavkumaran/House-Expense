@@ -12,7 +12,7 @@ A responsive household expense tracker that uses Supabase Auth and Postgres. Hou
 
 The Supabase schema enforces household-level row security. Keep RLS enabled, and never expose a service-role key in the browser. For production, configure Supabase Auth email confirmation and allowed redirect URLs for the deployed origin.
 
-For an existing installation, apply new files in [`supabase/migrations/`](./supabase/migrations/) in timestamp order. The latest migration enables live updates for household data and validates reimbursement settlements against the current outstanding balance.
+For an existing installation, apply new files in [`supabase/migrations/`](./supabase/migrations/) in timestamp order. The latest migrations enable live updates for household data, validate reimbursement settlements against the current outstanding balance, and restrict recording/reversing reimbursements to household owners.
 
 ### Netlify build configuration
 
@@ -95,6 +95,8 @@ adb install -r android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
 The APK is a debug build signed with the local debug key, not a Play Store release artifact. Recording requires a secure origin (Capacitor's local HTTPS origin qualifies), microphone permission, a supported MediaRecorder format, network access, a signed-in Supabase session and the deployed transcription function.
+
+Settings includes **Check for updates**, which checks the public `yadavkumaran/Hearth` GitHub latest release. Publish each update as a stable release tagged with a three-part version such as `v1.2.0` and attach one APK asset (the updater prefers `app-debug.apk` if multiple APKs are attached). The release repository must be public. Users download the APK and approve Android's installer prompt; Android updates the existing installation only when the APK uses the same signing certificate and a higher `versionCode`. Keep the Android `versionCode` increasing and keep `versionName` and `CURRENT_APP_VERSION` in `apk-updater.js` synchronized for every release. Never publish an APK signed by a different key for an existing family install.
 
 ## Implemented workflows
 
