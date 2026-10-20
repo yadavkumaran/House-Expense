@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Hearth</string>
-    <string name="title_activity_main">Hearth</string>
+    <string name="app_name">House Expense</string>
+    <string name="title_activity_main">House Expense</string>
     <string name="package_name">com.hearth.expenses</string>
     <string name="custom_url_scheme">com.hearth.expenses</string>
 </resources>

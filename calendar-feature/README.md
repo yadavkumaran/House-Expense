@@ -1,6 +1,6 @@
 # Isolated expense calendar feature
 
-The calendar is integrated into Hearth's More menu. The standalone preview remains at `preview.html`; its clearly labelled sample transactions are illustrative and are not connected to Supabase.
+The calendar is integrated into House Expense's More menu. The standalone preview remains at `preview.html`; its clearly labelled sample transactions are illustrative and are not connected to Supabase.
 
 ## Interface
 

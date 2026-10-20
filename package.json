@@ -8,7 +8,8 @@
     "build:web": "node scripts/prepare-web.mjs",
     "android:add": "npm run build:web && cap add android",
     "android:sync": "npm run build:web && cap sync android",
-    "android:debug": "npm run android:sync && android\\gradlew.bat -p android assembleDebug"
+    "android:debug": "npm run android:sync && android\\gradlew.bat -p android assembleDebug",
+    "android:bundleRelease": "npm run android:sync && android\\gradlew.bat -p android bundleRelease"
   },
   "dependencies": {
     "@capacitor/android": "8.4.3",

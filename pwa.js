@@ -28,7 +28,7 @@ installButton.addEventListener("click", async () => {
     await installPrompt.prompt();
     await installPrompt.userChoice;
   } catch (error) {
-    console.error("Hearth installation prompt failed.", error);
+    console.error("House Expense installation prompt failed.", error);
     status.textContent = "Could not open the installation prompt. Try the browser menu instead.";
     status.classList.add("visible");
   } finally {
@@ -61,7 +61,7 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || location.
       });
     });
   }).catch(error => {
-    console.error("Hearth service worker registration failed.", error);
+    console.error("House Expense service worker registration failed.", error);
   });
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {

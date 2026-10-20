@@ -1,4 +1,4 @@
-const CACHE_NAME = "hearth-shell-v5";
+const CACHE_NAME = "hearth-shell-v6";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -11,6 +11,7 @@ const SHELL_FILES = [
   "./calendar-feature/calendar.css",
   "./manifest.webmanifest",
   "./icons/hearth-logo.png",
+  "./icons/hearth-mark.png",
   "./icons/hearth-192.png",
   "./icons/hearth-512.png",
   "./icons/hearth-maskable-512.png"

@@ -11,6 +11,7 @@ import {
   calculateRoomBreakdown,
   calculateBudgetStatus
 } from "./accounting.js";
+import { queryRows } from "./query-results.js";
 
 const app = document.querySelector("#app");
 const modalRoot = document.querySelector("#modal-root");
@@ -104,7 +105,7 @@ const T = {
     actualPaymentHelp: "Enter what you actually paid; saving records one authoritative expense.",
     paymentRecorded: "Confirmed payment and recorded actual expense.",
     accountCreate: "Account created. Please check your email to confirm before signing in.",
-    notConfigured: "Connect Supabase to use Hearth",
+    notConfigured: "Connect Supabase to use House Expense",
     configHelp: "Add your project URL and anon key to supabase-config.js and apply migrations.",
     noHousehold: "Create a household or join one with an invite code to begin.",
     signUpSuccess: "Account created. If email confirmation is enabled, confirm your address and then sign in.",
@@ -352,6 +353,7 @@ const state = {
   undoTimer: null,
   undoCountdownInterval: null,
   undoSecondsRemaining: 8,
+  realtimeRefreshTimer: null,
   listening: null,
   receiptUrl: null,
   voice: null
@@ -412,7 +414,7 @@ function errorMessage(error) {
 }
 
 function showError(error) {
-  console.error("[Hearth]", error);
+  console.error("[House Expense]", error);
   flash(errorMessage(error));
 }
 
@@ -486,7 +488,8 @@ function renderAuth() {
     <div style="min-height:85dvh; display:flex; flex-direction:column; justify-content:center;">
       <section class="panel" style="max-width:440px; margin:0 auto; width:100%;">
         <div style="text-align:center; margin-bottom:20px;">
-          <div class="brand-chip" style="margin-bottom:12px;"><span class="brand-flame">🔥</span> HEARTH FINANCES</div>
+          <img class="auth-logo" src="./icons/hearth-mark.png" alt="">
+          <h2 class="hd" style="font-size:24px; margin:0 0 16px;">House Expense</h2>
           <h1 class="hd" style="font-size:26px;">A calmer way to share expenses.</h1>
           <p class="muted small">${tr("accountIntro")}</p>
         </div>
@@ -510,7 +513,7 @@ function renderOnboarding() {
   app.innerHTML = `
     <header class="top">
       <div>
-        <div class="brand-chip"><span class="brand-flame">🔥</span> HEARTH</div>
+        <div class="brand-chip"><img class="brand-mark" src="./icons/hearth-mark.png" alt=""> HOUSE EXPENSE</div>
         <h1>${tr("roomSetup")}</h1>
       </div>
       <button class="button sm" data-action="signout">${tr("signOut")}</button>
@@ -586,7 +589,7 @@ function renderHome() {
   return `
     <header class="top">
       <div>
-        <div class="brand-chip"><span class="brand-flame">🔥</span> ${esc(state.room.name)} · 👥 ${formatPeopleInHouse(state.members.length)}</div>
+        <div class="brand-chip"><img class="brand-mark" src="./icons/hearth-mark.png" alt=""> ${esc(state.room.name)} · 👥 ${formatPeopleInHouse(state.members.length)}</div>
         <h1 class="hd">${esc(tr("home"))}</h1>
       </div>
       <button class="household-picker-btn" type="button" data-action="navigate" data-value="household">
@@ -1592,20 +1595,19 @@ async function loadHouseholds() {
 async function refreshRoom() {
   if (!state.room) return;
   const roomId = state.room.id;
-  const from = monthStart(-11);
 
   const { data: members, error: membersError } = await state.client.from("household_members")
     .select("user_id,role").eq("household_id", roomId);
   if (membersError) throw membersError;
 
   const queries = await Promise.allSettled([
-    state.client.from("expenses").select("*").eq("household_id", roomId).gte("occurred_on", from).order("occurred_on", { ascending: false }),
+    fetchAllRows(state.client.from("expenses").select("*").eq("household_id", roomId).order("occurred_on", { ascending: false })),
     state.client.from("category_budgets").select("*").eq("household_id", roomId),
     state.client.from("recurring_bills").select("*").eq("household_id", roomId).order("next_due"),
     state.client.from("shopping_items").select("*").eq("household_id", roomId).order("created_at", { ascending: false }),
     state.client.from("savings_goals").select("*").eq("household_id", roomId).order("created_at", { ascending: false }),
     state.client.from("savings_contributions").select("*").eq("household_id", roomId).order("contributed_on", { ascending: false }),
-    state.client.from("settlements").select("*").eq("household_id", roomId).order("settled_on", { ascending: false }),
+    fetchAllRows(state.client.from("settlements").select("*").eq("household_id", roomId).order("settled_on", { ascending: false })),
     state.client.from("activity_events").select("*").eq("household_id", roomId).order("created_at", { ascending: false }).limit(60),
     state.client.from("user_profiles").select("user_id,display_name").in("user_id", members.map(m => m.user_id)),
     // Optional schema enhancements (graceful fallback if migration not yet run)
@@ -1617,16 +1619,31 @@ async function refreshRoom() {
 
   const [expRes, budRes, billRes, shopRes, goalRes, contRes, settRes, actRes, profRes, roomsRes, custCatRes, payMethRes, alertRes] = queries;
 
-  state.expenses = expRes.status === "fulfilled" && expRes.value.data ? expRes.value.data : [];
-  state.budgets = budRes.status === "fulfilled" && budRes.value.data ? budRes.value.data : [];
-  state.bills = billRes.status === "fulfilled" && billRes.value.data ? billRes.value.data : [];
-  state.shopping = shopRes.status === "fulfilled" && shopRes.value.data ? shopRes.value.data : [];
-  state.goals = goalRes.status === "fulfilled" && goalRes.value.data ? goalRes.value.data : [];
-  state.contributions = contRes.status === "fulfilled" && contRes.value.data ? contRes.value.data : [];
-  state.settlements = settRes.status === "fulfilled" && settRes.value.data ? settRes.value.data : [];
-  state.activity = actRes.status === "fulfilled" && actRes.value.data ? actRes.value.data : [];
+  const expenses = queryRows(expRes, "expenses");
+  const budgets = queryRows(budRes, "budgets");
+  const bills = queryRows(billRes, "recurring bills");
+  const shopping = queryRows(shopRes, "shopping items");
+  const goals = queryRows(goalRes, "savings goals");
+  const contributions = queryRows(contRes, "savings contributions");
+  const settlements = queryRows(settRes, "settlements");
+  const activity = queryRows(actRes, "activity events");
+  const profiles = queryRows(profRes, "member profiles");
+  const rooms = queryRows(roomsRes, "rooms", true);
+  const customCategories = queryRows(custCatRes, "custom categories", true);
+  const paymentMethods = queryRows(payMethRes, "payment methods", true);
+  const spendingAlerts = queryRows(alertRes, "spending alerts", true);
 
-  const profiles = profRes.status === "fulfilled" && profRes.value.data ? profRes.value.data : [];
+  if (state.room?.id !== roomId) return;
+
+  state.expenses = expenses;
+  state.budgets = budgets;
+  state.bills = bills;
+  state.shopping = shopping;
+  state.goals = goals;
+  state.contributions = contributions;
+  state.settlements = settlements;
+  state.activity = activity;
+
   const names = new Map(profiles.map(p => [p.user_id, p.display_name]));
   state.members = members.map(m => ({
     ...m,
@@ -1634,12 +1651,22 @@ async function refreshRoom() {
   }));
 
   // Enhanced features
-  state.rooms = roomsRes.status === "fulfilled" && roomsRes.value.data ? roomsRes.value.data : [];
-  state.customCategories = custCatRes.status === "fulfilled" && custCatRes.value.data ? custCatRes.value.data : [];
-  state.paymentMethods = payMethRes.status === "fulfilled" && payMethRes.value.data ? payMethRes.value.data : [];
-  state.spendingAlerts = alertRes.status === "fulfilled" && alertRes.value.data ? alertRes.value.data : [];
+  state.rooms = rooms;
+  state.customCategories = customCategories;
+  state.paymentMethods = paymentMethods;
+  state.spendingAlerts = spendingAlerts;
 
   render();
+}
+
+async function fetchAllRows(query, pageSize = 1000) {
+  const allRows = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    allRows.push(...(data || []));
+    if (!data || data.length < pageSize) return allRows;
+  }
 }
 
 async function bootstrap() {
@@ -1684,17 +1711,56 @@ function subscribeRealtime() {
   state.subscription?.unsubscribe();
   if (!state.room) return;
 
-  state.subscription = state.client.channel(`hearth:${state.room.id}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "shopping_items", filter: `household_id=eq.${state.room.id}` }, () => {
-      state.client.from("shopping_items").select("*").eq("household_id", state.room.id).order("created_at", { ascending: false })
-        .then(({ data }) => {
-          if (data) {
-            state.shopping = data;
-            if (state.page === "groceries" || state.page === "home") render();
+  const roomId = state.room.id;
+  const channel = state.client.channel(`hearth:${roomId}`);
+  const householdTables = [
+    "expenses", "category_budgets", "recurring_bills", "shopping_items",
+    "savings_goals", "savings_contributions", "settlements", "activity_events",
+    "household_members", "rooms", "custom_categories", "payment_methods",
+    "spending_alerts"
+  ];
+  const queueRefresh = reloadHouseholds => {
+    clearTimeout(state.realtimeRefreshTimer);
+    state.realtimeRefreshTimer = setTimeout(async () => {
+      if (state.room?.id !== roomId) return;
+      try {
+        if (reloadHouseholds) {
+          await loadHouseholds();
+          if (state.room?.id !== roomId) {
+            subscribeRealtime();
+            if (!state.room) render();
           }
-        });
-    })
-    .subscribe();
+        }
+        await refreshRoom();
+      } catch (error) {
+        showError(error);
+      }
+    }, 150);
+  };
+
+  for (const table of householdTables) {
+    channel.on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table,
+      filter: `household_id=eq.${roomId}`
+    }, payload => {
+      queueRefresh(table === "household_members" || (table === "activity_events" && payload.new?.entity === "household_members"));
+    });
+  }
+
+  channel.on("postgres_changes", {
+    event: "*",
+    schema: "public",
+    table: "households",
+    filter: `id=eq.${roomId}`
+  }, () => queueRefresh(true));
+
+  state.subscription = channel.subscribe((status, error) => {
+    if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+      console.error(`Household live updates ${status.toLowerCase()}.`, error || "");
+    }
+  });
 }
 
 // MODAL CONTROLLER
@@ -2593,12 +2659,22 @@ async function handleForm(event) {
       const amount = Number(value("amount"));
       const settledOn = value("settled_on") || today();
       const notes = value("notes") || "";
+      const balance = calculatePersonalReimbursements({
+        members: state.members,
+        expenses: state.expenses,
+        settlements: state.settlements,
+        currentUserId: state.user.id
+      }).find(item => item.member.user_id === toUser);
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter an amount greater than zero.");
+      if (!balance || amount > balance.outstanding) throw new Error("The reimbursement balance changed. Refresh and try again.");
+      if (settledOn > today()) throw new Error("Settlement date cannot be in the future.");
 
       const { error } = await state.client.rpc("record_settlement", {
         household: roomId,
         other_user: toUser,
         paid_amount: amount,
-        payment_date: settledOn
+        payment_date: settledOn,
+        payment_notes: notes
       });
       if (error) throw error;
       closeModal();
@@ -2857,8 +2933,13 @@ async function handleAction(button) {
           await refreshRoom();
 
           showUndoToast("Settlement reversed", async () => {
-            delete original.id;
-            const { error: restoreErr } = await state.client.from("settlements").insert(original);
+            const { error: restoreErr } = await state.client.rpc("record_settlement", {
+              household: roomId,
+              other_user: original.to_user,
+              paid_amount: original.amount,
+              payment_date: original.settled_on,
+              payment_notes: original.notes || ""
+            });
             if (restoreErr) throw restoreErr;
             await refreshRoom();
             flash("Settlement restored.");
@@ -3365,6 +3446,15 @@ document.addEventListener("keydown", event => {
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && state.voice) closeModal();
+  if (!document.hidden && state.user && state.room) {
+    refreshRoom().catch(showError);
+  }
+});
+
+window.addEventListener("online", () => {
+  if (!state.user || !state.room) return;
+  subscribeRealtime();
+  refreshRoom().catch(showError);
 });
 
 window.addEventListener("pagehide", closeModal);
@@ -3373,7 +3463,7 @@ start().catch(error => {
   showError(error);
   app.innerHTML = `
     <section class="panel">
-      <h1>Hearth could not connect</h1>
+      <h1>House Expense could not connect</h1>
       <p class="small muted">${esc(errorMessage(error))}</p>
       <button class="button" onclick="location.reload()">Try again</button>
     </section>

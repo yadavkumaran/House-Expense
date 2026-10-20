@@ -1,4 +1,4 @@
-// Hearth Accounting Engine
+// House Expense accounting engine
 // Implements exact integer minor-unit arithmetic (paise) to prevent IEEE 754 floating-point inaccuracies.
 
 export function toMinorUnits(amount) {

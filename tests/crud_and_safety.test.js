@@ -1,5 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { queryRows } from "../query-results.js";
+
+test("household refresh accepts both paginated arrays and Supabase query responses", () => {
+  const expenses = [{ id: "expense-1", amount: 25 }];
+  const settlements = [{ id: "settlement-1", amount: 10 }];
+
+  assert.deepEqual(queryRows({ status: "fulfilled", value: expenses }, "expenses"), expenses);
+  assert.deepEqual(queryRows({ status: "fulfilled", value: { data: settlements, error: null } }, "settlements"), settlements);
+  assert.deepEqual(queryRows({ status: "fulfilled", value: { data: null, error: null } }, "expenses"), []);
+});
+
+test("household refresh surfaces required query failures and tolerates optional failures", () => {
+  const failure = new Error("Database unavailable");
+  const warnings = [];
+  const warn = console.warn;
+  console.warn = (...args) => warnings.push(args);
+
+  try {
+    assert.throws(
+      () => queryRows({ status: "rejected", reason: failure }, "expenses"),
+      error => error === failure
+    );
+    assert.deepEqual(
+      queryRows({ status: "fulfilled", value: { data: null, error: failure } }, "rooms", true),
+      []
+    );
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0][0], /optional rooms/);
+  } finally {
+    console.warn = warn;
+  }
+});
 
 test("transaction validation rejects invalid amounts and future dates", () => {
   const validateExpense = (exp) => {

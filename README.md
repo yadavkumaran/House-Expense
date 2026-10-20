@@ -1,6 +1,6 @@
-# Hearth
+# House Expense
 
-A responsive household expense tracker that uses Supabase Auth and Postgres. Hearth does not seed example transactions or store financial records in browser local storage.
+A responsive household expense tracker that uses Supabase Auth and Postgres. House Expense does not seed example transactions or store financial records in browser local storage.
 
 ## Run it
 
@@ -8,9 +8,11 @@ A responsive household expense tracker that uses Supabase Auth and Postgres. Hea
 2. In the Supabase SQL Editor, run [`supabase/schema.sql`](./supabase/schema.sql).
 3. Copy `supabase-config.js.example` to `supabase-config.js`, then set the project URL and **anon/publishable** key. Do not put a service-role key in this file.
 4. Serve this directory over localhost or HTTPS. ES modules, service workers, camera access and microphone access do not work reliably from `file://`. For example, use `python -m http.server 8000` and open `http://localhost:8000`.
-5. Create an account, then create a household or join one with its invite code. From Settings, you can create or join additional households and switch between every household you belong to. Each member must have a Hearth account.
+5. Create an account, then create a household or join one with its invite code. From Settings, you can create or join additional households and switch between every household you belong to. Each member must have a House Expense account.
 
 The Supabase schema enforces household-level row security. Keep RLS enabled, and never expose a service-role key in the browser. For production, configure Supabase Auth email confirmation and allowed redirect URLs for the deployed origin.
+
+For an existing installation, apply new files in [`supabase/migrations/`](./supabase/migrations/) in timestamp order. The latest migration enables live updates for household data and validates reimbursement settlements against the current outstanding balance.
 
 ### Netlify build configuration
 
@@ -18,13 +20,13 @@ Set the Netlify build environment variables `SUPABASE_URL` and `SUPABASE_ANON_KE
 
 ## Voice expense entry
 
-Open **Add expense → Voice entry**, choose English or Tamil, allow microphone access, and record up to 60 seconds. Before transcription, explicitly agree to send that recording to Groq. Hearth uploads it to an authenticated Supabase Edge Function, which verifies the Supabase user and transcribes it with Groq's `whisper-large-v3-turbo` model. Recordings are held in memory only and are not saved as expenses. You can cancel, retry, or continue manually.
+Open **Add expense → Voice entry**, choose English or Tamil, allow microphone access, and record up to 60 seconds. Before transcription, explicitly agree to send that recording to Groq. House Expense uploads it to an authenticated Supabase Edge Function, which verifies the Supabase user and transcribes it with Groq's `whisper-large-v3-turbo` model. Recordings are held in memory only and are not saved as expenses. You can cancel, retry, or continue manually.
 
 The transcript is parsed into a draft using deterministic rules. Amount, description, category, date, payer and funding are editable; fields that cannot be identified are left blank for you to supply. Payer is not inferred from funding, or vice versa. You must review the populated expense form and explicitly press **Save**; transcription never creates a financial transaction by itself. The existing Supabase expense insert and household RLS remain the only save path.
 
 The Groq API key is stored only as the `GROQ_API_KEY` Supabase Edge Function secret. The function requires a valid Supabase access token, verifies it with Supabase Auth, applies a database-backed limit of 10 transcription requests per signed-in user per rolling hour, validates the declared audio signature/type and size, and checks that the submitted duration is at most 60 seconds. The browser recorder itself stops at 60 seconds; duration metadata is client-reported, so server-enforced size and per-user rate limits are the protections against callers that bypass the UI. The browser recorder chooses a supported WebM or MP4 format where available; the function forwards the audio as multipart form data to Groq with the selected `en` or `ta` language hint. Audio is sent to Groq only after you press **Transcribe recording** with the consent checkbox selected. Provider errors are replaced with safe messages; API keys, audio, transcript, tokens and provider response bodies are not logged.
 
-Hearth uses Groq's [speech-to-text API](https://console.groq.com/docs/speech-to-text), endpoint `https://api.groq.com/openai/v1/audio/transcriptions`, with model `whisper-large-v3-turbo`. Groq documents multilingual support, ISO-639-1 language hints and a 25 MB Free-tier file limit; Hearth keeps its own 60-second/5 MiB limits. Start with Groq's Free plan. Free-plan request and usage limits can change; a provider HTTP 429 is reported as a rate-limit message with retry guidance. Hearth does not upgrade the account or fall back to any paid service. Transcription availability and Tamil accuracy are not guaranteed.
+House Expense uses Groq's [speech-to-text API](https://console.groq.com/docs/speech-to-text), endpoint `https://api.groq.com/openai/v1/audio/transcriptions`, with model `whisper-large-v3-turbo`. Groq documents multilingual support, ISO-639-1 language hints and a 25 MB Free-tier file limit; House Expense keeps its own 60-second/5 MiB limits. Start with Groq's Free plan. Free-plan request and usage limits can change; a provider HTTP 429 is reported as a rate-limit message with retry guidance. House Expense does not upgrade the account or fall back to any paid service. Transcription availability and Tamil accuracy are not guaranteed.
 
 ### Deploy the transcription function (PowerShell)
 
@@ -44,17 +46,41 @@ npx supabase functions deploy transcribe-expense --project-ref kbhixaiseqkcbsdsw
 npx supabase functions list --project-ref kbhixaiseqkcbsdswyta
 ```
 
-The function uses the fixed `whisper-large-v3-turbo` model and reads `GROQ_API_KEY` only from its server-side environment. The key is never part of `supabase-config.js`, the web bundle, browser storage, or APK assets. If the secret is absent or invalid, transcription fails with a safe configuration error; expense entry remains available manually. The existing `verify_jwt = true` setting in `supabase/config.toml`, explicit user verification, CORS handling and rate-limit migration remain in effect. No database migration change is needed for the provider switch. Verify deployment with `npx supabase functions list --project-ref kbhixaiseqkcbsdswyta`; an Edge Gateway `404 NOT_FOUND` means the function is not deployed to this project. When missing, the gateway rejects preflight before the authenticated upload is sent, which can look like a network failure. Hearth's short unauthenticated GET diagnostic distinguishes an undeployed function, blocked upload/CORS and an unreachable network without sending audio or an access token.
+The function uses the fixed `whisper-large-v3-turbo` model and reads `GROQ_API_KEY` only from its server-side environment. The key is never part of `supabase-config.js`, the web bundle, browser storage, or APK assets. If the secret is absent or invalid, transcription fails with a safe configuration error; expense entry remains available manually. The existing `verify_jwt = true` setting in `supabase/config.toml`, explicit user verification, CORS handling and rate-limit migration remain in effect. No database migration change is needed for the provider switch. Verify deployment with `npx supabase functions list --project-ref kbhixaiseqkcbsdswyta`; an Edge Gateway `404 NOT_FOUND` means the function is not deployed to this project. When missing, the gateway rejects preflight before the authenticated upload is sent, which can look like a network failure. House Expense's short unauthenticated GET diagnostic distinguishes an undeployed function, blocked upload/CORS and an unreachable network without sending audio or an access token.
 
-## Install Hearth (PWA)
+## Install House Expense (PWA)
 
-Serve the site from localhost or deploy it to HTTPS. Hearth's supplied family-expense logo is used on sign-in, onboarding, as the install/favicon artwork, and as the native Android launcher icon. In a supported browser, use the **Install Hearth** prompt when it appears, or choose **Install app / Add to Home Screen** from the browser menu. The service worker caches only the static application shell and icons; Supabase auth, household and financial API responses are never cached. Editing shared records still requires connectivity. An online/offline indicator is shown, and available app updates can be applied using the update prompt.
+Serve the site from localhost or deploy it to HTTPS. House Expense's supplied family-expense icon is used on sign-in, onboarding, as the install/favicon artwork, and as the native Android launcher and splash artwork. In a supported browser, use the **Install House Expense** prompt when it appears, or choose **Install app / Add to Home Screen** from the browser menu. The service worker caches only the static application shell and icons; Supabase auth, household and financial API responses are never cached. Editing shared records still requires connectivity. An online/offline indicator is shown, and available app updates can be applied using the update prompt.
 
 For Android, use Chrome's **Install app** or **Add to Home screen** menu on the HTTPS deployment. This installs the PWA without an APK and keeps the browser's supported speech-recognition environment. Microphone access still depends on browser support and permission.
 
+### Android release bundle (Capacitor / Google Play)
+
+The native package ID is `com.hearth.expenses`; it remains unchanged when renaming the displayed app. The project targets API 36 and produces the Google Play Android App Bundle (`.aab`). New Play uploads require a signed bundle. Use Play App Signing and create a separate local upload key; never commit the keystore or its passwords.
+
+Create the upload keystore once from PowerShell in the project directory. `keytool` prompts locally for the passwords and certificate details; do not send them in chat. Keep at least one secure offline backup. Loss of the upload key can require a Play Console reset.
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-24"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+.\scripts\create-upload-key.ps1
+$env:HEARTH_UPLOAD_KEYSTORE = (Resolve-Path .\android\keystores\hearth-upload.jks).Path
+$env:HEARTH_UPLOAD_KEY_ALIAS = "hearth-upload"
+$storePassword = Read-Host -AsSecureString "Upload keystore password"
+$env:HEARTH_UPLOAD_STORE_PASSWORD = [System.Net.NetworkCredential]::new("", $storePassword).Password
+$keyPassword = Read-Host -AsSecureString "Upload key password"
+$env:HEARTH_UPLOAD_KEY_PASSWORD = [System.Net.NetworkCredential]::new("", $keyPassword).Password
+npm run android:bundleRelease
+Remove-Item Env:HEARTH_UPLOAD_KEYSTORE, Env:HEARTH_UPLOAD_KEY_ALIAS, Env:HEARTH_UPLOAD_STORE_PASSWORD, Env:HEARTH_UPLOAD_KEY_PASSWORD
+$storePassword = $null
+$keyPassword = $null
+```
+
+The signed bundle is written to `android\app\build\outputs\bundle\release\app-release.aab`. Upload it in Play Console and enroll in Play App Signing. Keep the upload key safe and backed up. Before release, add a public HTTPS privacy policy URL, complete Data safety and app-content declarations (including financial data and the voice recording/transcription flow), provide store listing assets/screenshots, and test the signed bundle on physical devices. Play Console may impose additional closed-testing requirements based on the developer account type.
+
 ### Android debug APK (Capacitor)
 
-The project includes a Capacitor Android wrapper. Building requires Node.js 22+, JDK 21+, Android SDK Platform/Build Tools 36, and an internet connection for Gradle and Maven dependencies. Install Android Studio and accept the SDK licenses if these components are missing. Android microphone permission is requested when recording starts.
+The project includes a Capacitor Android wrapper. Building requires Node.js 22+, JDK 21 or 24 (the pinned Gradle 8.14.3 does not support the installed JDK 25), Android SDK Platform/Build Tools 36, and an internet connection for Gradle and Maven dependencies. Set Android Studio's Gradle JDK to JDK 21 or 24 as well. Install Android Studio and accept the SDK licenses if these components are missing. Android microphone permission is requested when recording starts.
 
 ```powershell
 npm install
@@ -68,7 +94,7 @@ npm run android:debug
 adb install -r android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-The APK is a debug build signed with the local debug key, not a release artifact. Recording requires a secure origin (Capacitor's local HTTPS origin qualifies), microphone permission, a supported MediaRecorder format, network access, a signed-in Supabase session and the deployed transcription function.
+The APK is a debug build signed with the local debug key, not a Play Store release artifact. Recording requires a secure origin (Capacitor's local HTTPS origin qualifies), microphone permission, a supported MediaRecorder format, network access, a signed-in Supabase session and the deployed transcription function.
 
 ## Implemented workflows
 

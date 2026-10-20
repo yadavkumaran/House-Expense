@@ -9,6 +9,7 @@ const files = [
   "index.html",
   "app.js",
   "accounting.js",
+  "query-results.js",
   "voice.js",
   "pwa.js",
   "service-worker.js",
@@ -37,7 +38,7 @@ for (const file of ["calendar.js", "calendar.css"]) {
   }
 }
 
-for (const icon of ["hearth-logo.png", "hearth-192.png", "hearth-512.png", "hearth-maskable-512.png"]) {
+for (const icon of ["hearth-logo.png", "hearth-mark.png", "hearth-192.png", "hearth-512.png", "hearth-maskable-512.png"]) {
   const destination = join(output, "icons", icon);
   await mkdir(dirname(destination), { recursive: true });
   try {
@@ -47,4 +48,4 @@ for (const icon of ["hearth-logo.png", "hearth-192.png", "hearth-512.png", "hear
   }
 }
 
-console.log("Prepared Hearth web assets in dist/.");
+console.log("Prepared House Expense web assets in dist/.");

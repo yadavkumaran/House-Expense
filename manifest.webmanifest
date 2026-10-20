@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Hearth — household expenses",
-  "short_name": "Hearth",
+  "name": "House Expense — household expenses",
+  "short_name": "House Expense",
   "description": "A calmer way to manage shared household expenses.",
   "start_url": "./",
   "scope": "./",

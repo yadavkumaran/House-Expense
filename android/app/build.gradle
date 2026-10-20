@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+def uploadKeystorePath = System.getenv('HEARTH_UPLOAD_KEYSTORE')
+def uploadKeyAlias = System.getenv('HEARTH_UPLOAD_KEY_ALIAS')
+def uploadStorePassword = System.getenv('HEARTH_UPLOAD_STORE_PASSWORD')
+def uploadKeyPassword = System.getenv('HEARTH_UPLOAD_KEY_PASSWORD')
+def hasUploadSigning = [uploadKeystorePath, uploadKeyAlias, uploadStorePassword, uploadKeyPassword]
+    .every { it != null && !it.trim().isEmpty() }
+
 android {
     namespace = "com.hearth.expenses"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,9 +23,20 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        playUpload {
+            if (hasUploadSigning) {
+                storeFile = new File(uploadKeystorePath)
+                storePassword = uploadStorePassword
+                keyAlias = uploadKeyAlias
+                keyPassword = uploadKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.playUpload
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
@@ -43,6 +61,29 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
+
+tasks.configureEach { task ->
+    if (task.name in ['bundleRelease', 'assembleRelease', 'signReleaseBundle', 'validateSigningRelease', 'packageRelease']) {
+        task.doFirst {
+            def required = [
+                'HEARTH_UPLOAD_KEYSTORE': uploadKeystorePath,
+                'HEARTH_UPLOAD_KEY_ALIAS': uploadKeyAlias,
+                'HEARTH_UPLOAD_STORE_PASSWORD': uploadStorePassword,
+                'HEARTH_UPLOAD_KEY_PASSWORD': uploadKeyPassword
+            ]
+            def missing = required.findAll { name, value -> value == null || value.trim().isEmpty() }.keySet()
+            if (!missing.isEmpty()) {
+                throw new GradleException("Release signing is not configured. Set: ${missing.join(', ')}.")
+            }
+            if (!new File(uploadKeystorePath).isAbsolute()) {
+                throw new GradleException('HEARTH_UPLOAD_KEYSTORE must be an absolute path to the local upload keystore.')
+            }
+            if (!new File(uploadKeystorePath).isFile()) {
+                throw new GradleException('The file set in HEARTH_UPLOAD_KEYSTORE does not exist.')
+            }
+        }
+    }
+}
 
 try {
     def servicesJSON = file('google-services.json')

@@ -193,9 +193,24 @@ p { margin: 6px 0 14px; }
   text-transform: uppercase;
   color: var(--muted);
 }
-.brand-flame {
-  color: var(--hearth);
-  font-size: 13px;
+.auth-logo {
+  display: block;
+  width: 88px;
+  height: auto;
+  margin: 0 auto 18px;
+  padding: 6px;
+  border-radius: 20px;
+  background: #f8fafc;
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 2px;
+  border-radius: 50%;
+  background: #f8fafc;
+  object-fit: contain;
 }
 
 .household-picker-btn {
