@@ -12,6 +12,7 @@ const files = [
   "accounting.js",
   "query-results.js",
   "household-permissions.js",
+  "ui-preferences.js",
   "voice.js",
   "pwa.js",
   "service-worker.js",

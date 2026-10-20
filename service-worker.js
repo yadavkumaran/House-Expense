@@ -1,9 +1,13 @@
-const CACHE_NAME = "hearth-shell-v6";
+const CACHE_NAME = "hearth-shell-v7";
 const SHELL_FILES = [
   "./",
   "./index.html",
   "./app.js",
+  "./apk-updater.js",
   "./accounting.js",
+  "./query-results.js",
+  "./household-permissions.js",
+  "./ui-preferences.js",
   "./voice.js",
   "./pwa.js",
   "./styles.css",

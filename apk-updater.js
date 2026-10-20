@@ -1,4 +1,4 @@
-export const CURRENT_APP_VERSION = "1.3.0";
+export const CURRENT_APP_VERSION = "1.4.0";
 export const GITHUB_RELEASES_API = "https://api.github.com/repos/yadavkumaran/House-Expense/releases/latest";
 
 function parseVersion(value) {

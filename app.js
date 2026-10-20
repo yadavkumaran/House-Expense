@@ -15,6 +15,11 @@ import {
 import { queryRows } from "./query-results.js";
 import { hasHouseholdOwnerRole } from "./household-permissions.js";
 import {
+  applyUiPreferences,
+  loadUiPreferences,
+  saveUiPreferences
+} from "./ui-preferences.js";
+import {
   CURRENT_APP_VERSION,
   GITHUB_RELEASES_API,
   getApkReleaseUpdate
@@ -59,6 +64,12 @@ const T = {
     joinAnotherRoom: "Join another household", roomsHelp: "Manage households or switch between them at any time.",
     roomCreated: "Household created and selected.", roomJoined: "Joined household and selected.",
     categoryBreakdown: "Spending by category", remainingBudget: "left this month", darkTheme: "Dark mode", lightTheme: "Light mode",
+    appearance: "Appearance", theme: "Color theme", themeSystem: "Use device setting", themeLight: "Light", themeDark: "Dark",
+    accentColor: "Accent color", accentBlue: "Ocean blue", accentTeal: "Calm teal", accentViolet: "Soft violet", accentRose: "Warm rose",
+    layoutDensity: "Layout spacing", densityComfortable: "Comfortable", densityCompact: "Compact",
+    motionPreference: "Motion", motionSystem: "Follow device setting", motionReduced: "Reduced motion", motionFull: "Smooth transitions",
+    appearanceHelp: "These appearance choices are saved on this device.",
+    appearanceSaved: "Appearance updated.",
     monthlyBudget: "Monthly budgets",
     explainAlerts: "Each alert includes the recorded transactions and comparisons behind it.",
     noAlerts: "No spending alerts right now. Alerts trigger based on your household's actual transactions and thresholds.",
@@ -197,6 +208,12 @@ const T = {
     joinAnotherRoom: "மற்றொரு குடும்பத்தில் சேர்", roomsHelp: "குடும்பங்களை நிர்வகிக்கவும் அல்லது மாறவும்.",
     roomCreated: "குடும்பம் உருவாக்கப்பட்டது.", roomJoined: "குடும்பத்தில் சேர்ந்தீர்கள்.",
     categoryBreakdown: "வகை வாரியான செலவு", remainingBudget: "மீதம் உள்ளது", darkTheme: "இருண்ட தோற்றம்", lightTheme: "ஒளி தோற்றம்",
+    appearance: "தோற்ற அமைப்புகள்", theme: "வண்ணத் தோற்றம்", themeSystem: "சாதன அமைப்பு", themeLight: "ஒளி", themeDark: "இருள்",
+    accentColor: "முன்னிலை வண்ணம்", accentBlue: "நீலம்", accentTeal: "நீலப்பச்சை", accentViolet: "ஊதா", accentRose: "ரோஜா",
+    layoutDensity: "திரை இடைவெளி", densityComfortable: "வசதியான", densityCompact: "சுருக்கமான",
+    motionPreference: "இயக்கம்", motionSystem: "சாதன அமைப்பு", motionReduced: "குறைக்கப்பட்ட இயக்கம்", motionFull: "மென்மையான மாற்றங்கள்",
+    appearanceHelp: "இந்த தோற்றத் தேர்வுகள் இந்தச் சாதனத்தில் சேமிக்கப்படும்.",
+    appearanceSaved: "தோற்ற அமைப்பு மாற்றப்பட்டது.",
     monthlyBudget: "மாதாந்திர வரவுசெலவு",
     explainAlerts: "பதிவு செய்யப்பட்ட பரிவர்த்தனைகளின் அடிப்படையில் எச்சரிக்கைகள் காட்டப்படும்.",
     noAlerts: "தற்போது செலவு எச்சரிக்கைகள் இல்லை.", noExpenses: "செலவுகள் எதுவும் பதிவு செய்யப்படவில்லை.",
@@ -357,6 +374,7 @@ const state = {
   paymentMethods: [],
   spendingAlerts: [],
   page: "home",
+  animatePage: false,
   calendarMonth: localMonthKey(),
   calendarSelectedDate: "",
   ledgerSubtab: "all", // "all" | "settlements"
@@ -383,6 +401,13 @@ const state = {
   receiptUrl: null,
   voice: null
 };
+
+state.uiPreferences = loadUiPreferences();
+
+function applyAppearance() {
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyUiPreferences(state.uiPreferences, document.documentElement, prefersDark);
+}
 
 function isHouseholdOwner() {
   return hasHouseholdOwnerRole(state.members, state.user?.id);
@@ -1120,7 +1145,8 @@ function renderInsights() {
 
 // 4. HOUSEHOLD & SETTINGS VIEW
 function renderHousehold() {
-  const dark = localStorage.getItem("hearth.theme") === "dark";
+  const dark = state.uiPreferences.theme === "dark"
+    || (state.uiPreferences.theme === "system" && document.documentElement.dataset.theme === "dark");
   const userMembership = state.members.find(m => m.user_id === state.user.id);
   const isOwner = userMembership?.role === "owner";
 
@@ -1261,6 +1287,39 @@ function renderHousehold() {
     </section>
 
     <!-- 5. User Profile & Language -->
+    <section class="panel">
+      <h3>${tr("appearance")}</h3>
+      <p class="small muted">${tr("appearanceHelp")}</p>
+      <label class="field-label">${tr("theme")}
+        <select class="field" data-ui-preference="theme">
+          <option value="system" ${state.uiPreferences.theme === "system" ? "selected" : ""}>${tr("themeSystem")}</option>
+          <option value="light" ${state.uiPreferences.theme === "light" ? "selected" : ""}>${tr("themeLight")}</option>
+          <option value="dark" ${state.uiPreferences.theme === "dark" ? "selected" : ""}>${tr("themeDark")}</option>
+        </select>
+      </label>
+      <label class="field-label">${tr("accentColor")}
+        <select class="field" data-ui-preference="accent">
+          <option value="blue" ${state.uiPreferences.accent === "blue" ? "selected" : ""}>${tr("accentBlue")}</option>
+          <option value="teal" ${state.uiPreferences.accent === "teal" ? "selected" : ""}>${tr("accentTeal")}</option>
+          <option value="violet" ${state.uiPreferences.accent === "violet" ? "selected" : ""}>${tr("accentViolet")}</option>
+          <option value="rose" ${state.uiPreferences.accent === "rose" ? "selected" : ""}>${tr("accentRose")}</option>
+        </select>
+      </label>
+      <label class="field-label">${tr("layoutDensity")}
+        <select class="field" data-ui-preference="density">
+          <option value="comfortable" ${state.uiPreferences.density === "comfortable" ? "selected" : ""}>${tr("densityComfortable")}</option>
+          <option value="compact" ${state.uiPreferences.density === "compact" ? "selected" : ""}>${tr("densityCompact")}</option>
+        </select>
+      </label>
+      <label class="field-label">${tr("motionPreference")}
+        <select class="field" data-ui-preference="motion">
+          <option value="system" ${state.uiPreferences.motion === "system" ? "selected" : ""}>${tr("motionSystem")}</option>
+          <option value="reduced" ${state.uiPreferences.motion === "reduced" ? "selected" : ""}>${tr("motionReduced")}</option>
+          <option value="full" ${state.uiPreferences.motion === "full" ? "selected" : ""}>${tr("motionFull")}</option>
+        </select>
+      </label>
+    </section>
+
     <section class="panel">
       <h3>${tr("settings")}</h3>
       <form data-form="profile">
@@ -1574,7 +1633,7 @@ function renderReports() {
 
 function render() {
   document.documentElement.lang = state.profile?.language === "ta" ? "ta" : "en";
-  document.documentElement.dataset.theme = localStorage.getItem("hearth.theme") === "dark" ? "dark" : "light";
+  applyAppearance();
 
   if (!state.client) return;
   if (!state.user) return renderAuth();
@@ -1613,7 +1672,9 @@ function render() {
     `;
   }
 
-  app.innerHTML = `${viewHtml}${renderNav()}`;
+  const pageClass = state.animatePage ? "view-transition page-enter" : "view-transition";
+  state.animatePage = false;
+  app.innerHTML = `<div class="${pageClass}">${viewHtml}</div>${renderNav()}`;
 }
 
 // DATA INITIALIZATION & REFRESH
@@ -2813,6 +2874,7 @@ async function handleAction(button) {
 
   switch (action) {
     case "navigate":
+      state.animatePage = state.page !== button.dataset.value;
       state.page = button.dataset.value;
       render();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2868,6 +2930,7 @@ async function handleAction(button) {
     }
 
     case "navigate-ledger-settlements":
+      state.animatePage = state.page !== "ledger" || state.ledgerSubtab !== "settlements";
       state.page = "ledger";
       state.ledgerSubtab = "settlements";
       render();
@@ -2880,7 +2943,10 @@ async function handleAction(button) {
       break;
 
     case "toggle-theme":
-      localStorage.setItem("hearth.theme", localStorage.getItem("hearth.theme") === "dark" ? "light" : "dark");
+      state.uiPreferences = saveUiPreferences({
+        ...state.uiPreferences,
+        theme: document.documentElement.dataset.theme === "dark" ? "light" : "dark"
+      });
       render();
       break;
 
@@ -3480,7 +3546,20 @@ document.addEventListener("click", async event => {
 
 document.addEventListener("change", async event => {
   const target = event.target;
-  if (target.matches("[data-calendar-month]")) {
+  if (target.matches("[data-ui-preference]")) {
+    const key = target.dataset.uiPreference;
+    try {
+      state.uiPreferences = saveUiPreferences({
+        ...state.uiPreferences,
+        [key]: target.value
+      });
+      applyAppearance();
+      render();
+      flash(tr("appearanceSaved"));
+    } catch (error) {
+      showError(error);
+    }
+  } else if (target.matches("[data-calendar-month]")) {
     const minMonth = monthStart(-11).slice(0, 7);
     const maxMonth = monthStart().slice(0, 7);
     let val = target.value ? String(target.value).trim().slice(0, 7) : "";
@@ -3550,6 +3629,16 @@ window.addEventListener("online", () => {
   subscribeRealtime();
   refreshRoom().catch(showError);
 });
+
+const colorSchemePreference = window.matchMedia("(prefers-color-scheme: dark)");
+const reducedMotionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+const systemAppearanceChanged = () => {
+  if (state.uiPreferences.theme === "system" || state.uiPreferences.motion === "system") applyAppearance();
+};
+for (const preference of [colorSchemePreference, reducedMotionPreference]) {
+  if (preference.addEventListener) preference.addEventListener("change", systemAppearanceChanged);
+  else preference.addListener(systemAppearanceChanged);
+}
 
 window.addEventListener("pagehide", closeModal);
 

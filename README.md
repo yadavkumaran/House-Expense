@@ -96,7 +96,7 @@ adb install -r android\app\build\outputs\apk\debug\app-debug.apk
 
 The APK is a debug build signed with the local debug key, not a Play Store release artifact. Recording requires a secure origin (Capacitor's local HTTPS origin qualifies), microphone permission, a supported MediaRecorder format, network access, a signed-in Supabase session and the deployed transcription function.
 
-Settings includes **Check for updates**, which checks the public `yadavkumaran/House-Expense` GitHub latest release. Publish each update as a stable release tagged with a three-part version such as `v1.3.0` and attach one APK asset (the updater prefers `app-debug.apk` if multiple APKs are attached). The release repository must be public. Users download the APK and approve Android's installer prompt; Android updates the existing installation only when the APK uses the same signing certificate and a higher `versionCode`. Keep the Android `versionCode` increasing and keep `versionName` and `CURRENT_APP_VERSION` in `apk-updater.js` synchronized for every release. Never publish an APK signed by a different key for an existing family install.
+Settings includes **Check for updates**, which checks the public `yadavkumaran/House-Expense` GitHub latest release. Publish each update as a stable release tagged with a three-part version such as `v1.4.0` and attach one APK asset (the updater prefers `app-debug.apk` if multiple APKs are attached). The release repository must be public. Users download the APK and approve Android's installer prompt; Android updates the existing installation only when the APK uses the same signing certificate and a higher `versionCode`. Keep the Android `versionCode` increasing and keep `versionName` and `CURRENT_APP_VERSION` in `apk-updater.js` synchronized for every release. Never publish an APK signed by a different key for an existing family install.
 
 ## Implemented workflows
 
@@ -107,6 +107,7 @@ Settings includes **Check for updates**, which checks the public `yadavkumaran/H
 - **Other features:** per-user English/Tamil preference; savings goals with separately recorded contributions; authenticated API-powered voice transcription into a reviewable expense form; CSV export; print-to-PDF; and a room-scoped audit log.
 - **Multiple households:** one account can create many households and join many others. Manage them in Household, switch the active household there, and share the selected household's invite code.
 - **Transaction filters:** filter by category, room, payer, personal/shared funding, and date range; view the exact total for the currently filtered transactions.
+- **Appearance:** choose a system/light/dark theme, accent color, compact or comfortable spacing, and motion preference in Household settings. Preferences are stored locally on each device.
 - **PWA:** installable app manifest, maskable and standard icons, safe static-shell caching, update prompt and connectivity status. Private Supabase data is never placed in the service-worker cache.
 
 Due reminders are in-app; this static client does not claim to send push notifications or background reminders when closed. Voice recording/transcription requires an available microphone, permission, connectivity and a configured provider. Print-to-PDF uses the browser's print dialog.
