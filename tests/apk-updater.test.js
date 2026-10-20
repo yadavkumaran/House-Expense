@@ -9,18 +9,18 @@ import {
 
 test("latest release resolves a newer APK with a supported GitHub release URL", () => {
   const update = getApkReleaseUpdate({
-    tag_name: "v1.3.0",
+    tag_name: "v1.4.0",
     draft: false,
     prerelease: false,
-    html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.3.0",
+    html_url: "https://github.com/yadavkumaran/House-Expense/releases/tag/v1.4.0",
     assets: [{
       name: "app-debug.apk",
-      browser_download_url: "https://github.com/yadavkumaran/Hearth/releases/download/v1.3.0/app-debug.apk"
+      browser_download_url: "https://github.com/yadavkumaran/House-Expense/releases/download/v1.4.0/app-debug.apk"
     }]
   });
 
   assert.equal(update.hasUpdate, true);
-  assert.equal(update.version, "1.3.0");
+  assert.equal(update.version, "1.4.0");
   assert.equal(update.downloadUrl.endsWith("/app-debug.apk"), true);
 });
 
@@ -40,17 +40,17 @@ test("updater version matches the native Android package version", async () => {
 });
 
 test("invalid releases and APK URLs fail explicitly", () => {
-  assert.equal(GITHUB_RELEASES_API, "https://api.github.com/repos/yadavkumaran/Hearth/releases/latest");
+  assert.equal(GITHUB_RELEASES_API, "https://api.github.com/repos/yadavkumaran/House-Expense/releases/latest");
   assert.throws(
     () => getApkReleaseUpdate({ tag_name: "not-a-version", draft: false, prerelease: false }),
     /Invalid app release version/
   );
   assert.throws(
     () => getApkReleaseUpdate({
-      tag_name: "v1.3.0",
+      tag_name: "v1.4.0",
       draft: false,
       prerelease: false,
-      html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.3.0",
+      html_url: "https://github.com/yadavkumaran/House-Expense/releases/tag/v1.4.0",
       assets: [{ name: "app-debug.apk", browser_download_url: "https://example.com/app-debug.apk" }]
     }),
     /does not contain one valid/
