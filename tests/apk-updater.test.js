@@ -9,18 +9,18 @@ import {
 
 test("latest release resolves a newer APK with a supported GitHub release URL", () => {
   const update = getApkReleaseUpdate({
-    tag_name: "v1.2.0",
+    tag_name: "v1.3.0",
     draft: false,
     prerelease: false,
-    html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.2.0",
+    html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.3.0",
     assets: [{
       name: "app-debug.apk",
-      browser_download_url: "https://github.com/yadavkumaran/Hearth/releases/download/v1.2.0/app-debug.apk"
+      browser_download_url: "https://github.com/yadavkumaran/Hearth/releases/download/v1.3.0/app-debug.apk"
     }]
   });
 
   assert.equal(update.hasUpdate, true);
-  assert.equal(update.version, "1.2.0");
+  assert.equal(update.version, "1.3.0");
   assert.equal(update.downloadUrl.endsWith("/app-debug.apk"), true);
 });
 
@@ -47,10 +47,10 @@ test("invalid releases and APK URLs fail explicitly", () => {
   );
   assert.throws(
     () => getApkReleaseUpdate({
-      tag_name: "v1.2.0",
+      tag_name: "v1.3.0",
       draft: false,
       prerelease: false,
-      html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.2.0",
+      html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.3.0",
       assets: [{ name: "app-debug.apk", browser_download_url: "https://example.com/app-debug.apk" }]
     }),
     /does not contain one valid/

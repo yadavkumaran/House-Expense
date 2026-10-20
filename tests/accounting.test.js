@@ -5,6 +5,7 @@ import {
   fromMinorUnits,
   addCurrency,
   subtractCurrency,
+  calculateExpenseTotal,
   calculatePersonalReimbursements,
   calculateCategoryBreakdown,
   calculateRoomBreakdown,
@@ -23,6 +24,16 @@ test("precision minor-unit arithmetic prevents IEEE 754 floating-point inaccurac
   assert.equal(toMinorUnits(1234.56), 123456);
   assert.equal(fromMinorUnits(123456), 1234.56);
   assert.equal(toMinorUnits("₹1,250.75"), 125075);
+});
+
+test("filtered transaction totals use paise precision and exclude deleted entries", () => {
+  assert.equal(calculateExpenseTotal([
+    { amount: 0.1 },
+    { amount: 0.2 },
+    { amount: 10.25 },
+    { amount: 100, deleted_at: "2026-10-01T00:00:00Z" }
+  ]), 10.55);
+  assert.equal(calculateExpenseTotal([]), 0);
 });
 
 test("spending from personal pocket creates a reimbursement liability", () => {

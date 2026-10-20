@@ -26,6 +26,13 @@ export function subtractCurrency(a, b) {
   return fromMinorUnits(toMinorUnits(a) - toMinorUnits(b));
 }
 
+export function calculateExpenseTotal(expenses = []) {
+  const totalMinorUnits = expenses
+    .filter(expense => !expense.deleted_at)
+    .reduce((sum, expense) => sum + toMinorUnits(expense.amount), 0);
+  return fromMinorUnits(totalMinorUnits);
+}
+
 /**
  * Calculates personal pocket reimbursement balances for each household member.
  *

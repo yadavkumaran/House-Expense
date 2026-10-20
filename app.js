@@ -6,6 +6,7 @@ import {
   formatCurrency,
   addCurrency,
   subtractCurrency,
+  calculateExpenseTotal,
   calculatePersonalReimbursements,
   calculateCategoryBreakdown,
   calculateRoomBreakdown,
@@ -167,6 +168,8 @@ const T = {
     typeHouseholdNameToConfirm: "Type the household name to confirm deletion:",
     searchTransactions: "Search transactions…", allCategories: "All categories",
     allRooms: "All rooms", allPayers: "All payers", allFunding: "All funding",
+    checkFilteredTotal: "Check filtered total", filteredTransactionTotal: "Filtered transaction total",
+    filteredTransactionCount: "{count} transaction(s)", totalAmount: "Total amount",
     filterDateRange: "Date range", rangeThisMonth: "This month", rangeLastMonth: "Last month",
     rangeLast3Months: "Last 3 months", rangeAllTime: "All time",
     sortBy: "Sort by", sortNewest: "Date (Newest first)", sortOldest: "Date (Oldest first)",
@@ -276,6 +279,8 @@ const T = {
     typeHouseholdNameToConfirm: "உறுதிப்படுத்த குடும்பப் பெயரை உள்ளிடவும்:",
     searchTransactions: "பரிவர்த்தனைகளைத் தேடுக…", allCategories: "அனைத்து வகைகள்",
     allRooms: "அனைத்து அறைகள்", allPayers: "அனைத்து நபர்கள்", allFunding: "அனைத்து நிதி வழிகள்",
+    checkFilteredTotal: "வடிகட்டிய மொத்தத்தைப் பார்", filteredTransactionTotal: "வடிகட்டிய பரிவர்த்தனை மொத்தம்",
+    filteredTransactionCount: "{count} பரிவர்த்தனைகள்", totalAmount: "மொத்தத் தொகை",
     filterDateRange: "தேதி வரம்பு", rangeThisMonth: "இந்த மாதம்", rangeLastMonth: "கடந்த மாதம்",
     rangeLast3Months: "கடந்த 3 மாதங்கள்", rangeAllTime: "எல்லா நேரமும்",
     sortBy: "வரிசைப்படுத்து", sortNewest: "தேதி (புதியவை முதலில்)", sortOldest: "தேதி (பழையவை முதலில்)",
@@ -813,7 +818,7 @@ function renderLedger() {
     return b.occurred_on.localeCompare(a.occurred_on); // dateDesc default
   });
 
-  const totalFilteredAmount = filtered.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalFilteredAmount = calculateExpenseTotal(filtered);
   const totalPages = Math.max(1, Math.ceil(filtered.length / f.pageSize));
   const currentPage = Math.min(f.page, totalPages);
   const pagedExpenses = filtered.slice((currentPage - 1) * f.pageSize, currentPage * f.pageSize);
@@ -857,6 +862,12 @@ function renderLedger() {
             ${state.members.map(m => `<option value="${m.user_id}" ${f.payer === m.user_id ? "selected" : ""}>${esc(m.name)}</option>`).join("")}
           </select>
 
+          <select class="field sm" data-action="filter-funding" style="width:auto; min-width:130px;">
+            <option value="">${tr("allFunding")}</option>
+            <option value="shared" ${f.funding === "shared" ? "selected" : ""}>${tr("shared")}</option>
+            <option value="personal" ${f.funding === "personal" ? "selected" : ""}>${tr("personal")}</option>
+          </select>
+
           <select class="field sm" data-action="filter-range" style="width:auto; min-width:110px;">
             <option value="thisMonth" ${f.range === "thisMonth" ? "selected" : ""}>${tr("rangeThisMonth")}</option>
             <option value="lastMonth" ${f.range === "lastMonth" ? "selected" : ""}>${tr("rangeLastMonth")}</option>
@@ -874,7 +885,7 @@ function renderLedger() {
 
         <div class="between small muted" style="margin:8px 0 12px;">
           <span>${filtered.length} transaction(s) found</span>
-          <strong>Total: ${money(totalFilteredAmount)}</strong>
+          <button class="button sm soft" type="button" data-action="show-filtered-total" data-count="${filtered.length}" data-total="${totalFilteredAmount}">${tr("checkFilteredTotal")}</button>
         </div>
 
         ${pagedExpenses.length ? `
@@ -2843,6 +2854,19 @@ async function handleAction(button) {
       render();
       break;
 
+    case "show-filtered-total": {
+      const count = Number(button.dataset.count);
+      const total = Number(button.dataset.total);
+      if (!Number.isSafeInteger(count) || count < 0 || !Number.isFinite(total) || total < 0) {
+        throw new Error("Could not read the filtered transaction total. Please refresh and try again.");
+      }
+      modal(tr("filteredTransactionTotal"), `
+        <p>${esc(tx("filteredTransactionCount", { count }))}</p>
+        <p><strong>${tr("totalAmount")}: ${money(total)}</strong></p>
+      `);
+      break;
+    }
+
     case "navigate-ledger-settlements":
       state.page = "ledger";
       state.ledgerSubtab = "settlements";
@@ -3486,6 +3510,10 @@ document.addEventListener("change", async event => {
     render();
   } else if (target.matches('[data-action="filter-payer"]')) {
     state.filter.payer = target.value;
+    state.filter.page = 1;
+    render();
+  } else if (target.matches('[data-action="filter-funding"]')) {
+    state.filter.funding = target.value;
     state.filter.page = 1;
     render();
   } else if (target.matches('[data-action="filter-range"]')) {

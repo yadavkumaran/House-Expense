@@ -106,6 +106,7 @@ Settings includes **Check for updates**, which checks the public `yadavkumaran/H
 - **Spending alerts:** deterministic rules check category budget thresholds, matching duplicate entries, unusually large purchases against a 90-day category average, and category increases against the same elapsed days last month. Each alert renders its recorded comparison transactions and thresholds; no AI-generated findings are used.
 - **Other features:** per-user English/Tamil preference; savings goals with separately recorded contributions; authenticated API-powered voice transcription into a reviewable expense form; CSV export; print-to-PDF; and a room-scoped audit log.
 - **Multiple households:** one account can create many households and join many others. Manage them in Household, switch the active household there, and share the selected household's invite code.
+- **Transaction filters:** filter by category, room, payer, personal/shared funding, and date range; view the exact total for the currently filtered transactions.
 - **PWA:** installable app manifest, maskable and standard icons, safe static-shell caching, update prompt and connectivity status. Private Supabase data is never placed in the service-worker cache.
 
 Due reminders are in-app; this static client does not claim to send push notifications or background reminders when closed. Voice recording/transcription requires an available microphone, permission, connectivity and a configured provider. Print-to-PDF uses the browser's print dialog.
