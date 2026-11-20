@@ -88,6 +88,7 @@ test("appearance preferences apply theme, accent, density, and reduced-motion ch
 test("offline app shell precaches every application module", async () => {
   const serviceWorker = await readFile(new URL("../service-worker.js", import.meta.url), "utf8");
   for (const moduleName of [
+    "version.js",
     "apk-updater.js",
     "accounting.js",
     "query-results.js",

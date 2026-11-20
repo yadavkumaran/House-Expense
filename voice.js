@@ -3,7 +3,7 @@ const NUMBER_WORDS = {
   ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16,
   seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50,
   sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000,
-  lakh: 100000, lac: 100000
+  lakh: 100000, lac: 100000, crore: 10000000
 };
 
 const TAMIL_NUMBERS = {
@@ -59,7 +59,7 @@ function wordsToNumber(words) {
     if (word === "and") continue;
     const value = NUMBER_WORDS[word] ?? TAMIL_NUMBERS[word];
     if (value == null) return null;
-    if (value === 100 || value === 1000 || value === 100000) {
+    if (value === 100 || value === 1000 || value === 100000 || value === 10000000) {
       group = Math.max(1, group) * value;
       if (value > 100) {
         total += group;
@@ -72,24 +72,91 @@ function wordsToNumber(words) {
   return total + group;
 }
 
+export const CATEGORY_PATTERNS = [
+  ["veg", /\b(vegetables?|veggies?|carrot|onion|tomato|greens|potato|potatoes|brinjal|beans|cabbage|fruits?|apples?|banana|bananas?)\b|காய்கறி|தக்காளி|வெங்காயம்/ui],
+  ["groc", /\b(grocer(?:y|ies)|food|supermarket|rice|dal|wheat|flour|sugar|oil|provisions?|spices?|salt|egg|eggs)\b|மளிகை|உணவு|அரிசி|பருப்பு/ui],
+  ["milk", /\b(milk|dairy|curd|paneer|butter|cheese|ghee)\b|பால்|தயிர்|வெண்ணெய்|நெய்/ui],
+  ["snk", /\b(snack|snacks|biscuit|biscuits|cookie|cookies|tea|coffee|bakery|sweets?)\b|தின்பண்டம்|தேநீர்|காபி/ui],
+  ["rent", /\b(rent|lease|landlord|maintenance)\b|வாடகை/ui],
+  ["bill", /\b(electricity|electric|current\s*bill|power\s*bill|utility|utilities|bill|bills|wifi|broadband|recharge|water\s*bill)\b|மின்சாரம்|கட்டணம்/ui],
+  ["gas", /\b(cooking\s*gas|gas|cylinder|lpg|indane|bharat\s*gas|hp\s*gas)\b|எரிவாயு|சிலிண்டர்/ui],
+  ["hlth", /\b(health|medical|medicine|medicines|doctor|pharmacy|clinic|hospital|tablet|tablets|syrup)\b|மருத்துவம்|மருந்து/ui],
+  ["trans", /\b(transport(?:ation)?|taxi|uber|ola|bus|train|petrol|fuel|diesel|auto|cab|fare|metro|parking|toll)\b|போக்குவரத்து|பெட்ரோல்|டீசல்/ui],
+  ["shop", /\b(shopping|clothes|clothing|shirt|shirts|pant|pants|dress|shoes|flipkart|amazon|myntra)\b|கடைகள்|துணி/ui],
+  ["fun", /\b(entertainment|movie|cinema|concert|film|theatre|outing|party)\b|பொழுதுபோக்கு|திரைப்படம்|படம்/ui],
+  ["home", /\b(household|cleaning|decor|furniture|soap|detergent|repair|repairs|plumbing)\b|வீட்டுப் பொருட்கள்/ui],
+  ["oth", /\b(other|misc|miscellaneous)\b|மற்றவை/ui]
+];
+
+function isTimeOrQuantityContext(before, after) {
+  // Reject times like "at 6", "6 pm", "6 am", "at 6 today"
+  if (/(?:^|\s)at$/i.test(before) && /^(?:today|yesterday|tomorrow|am|pm|o'clock|\.\s*today|\.\s*$)/i.test(after)) return true;
+  if (/^(?:am|pm|o'clock|hours?|mins?|minutes?|seconds?)\b/i.test(after)) return true;
+  // Reject quantities like "1 kg", "2 litres", "5 packets"
+  if (/^(?:kg|kgs?|kilo|kilos?|gm|gms?|grams?|l|liters?|litres?|ml|packets?|pieces?|box(?:es)?)\b/i.test(after)) return true;
+  return false;
+}
+
+function parseMultiItems(transcript) {
+  // Matches segments like "Vegetables 150, fruits 100" or "Vegetables 150 and fruits 100"
+  const itemRegex = /([a-zA-Z\u0B80-\u0BFF\s]+?)\s*(?:for|cost|costs|:)?\s*(?:₹|rs\.?|inr)?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(?:rupees?|rs\.?|inr|ரூபாய்)?(?=[,;&]|\s+and\s+|\s*\.|\s*$)/gi;
+  const items = [];
+  let match;
+  while ((match = itemRegex.exec(transcript)) !== null) {
+    const rawLabel = match[1].trim();
+    const cleanLabel = rawLabel.replace(/^(?:and|plus|also|i\s+spent|we\s+spent|paid|bought)\s+/i, "").trim();
+    const val = Number(match[2].replaceAll(",", ""));
+    if (cleanLabel && Number.isFinite(val) && val > 0 && !/^(?:at|the|for|on|in)$/i.test(cleanLabel)) {
+      items.push({ label: cleanLabel, amount: val, raw: match[0] });
+    }
+  }
+  return items.length >= 2 ? items : null;
+}
+
 function amountFromTranscript(transcript) {
+  // 1. Currency tagged amount (₹250, 250 rupees, 250 rs, etc.)
   const currencyAmount = transcript.match(/(?:₹|rs\.?|inr)\s*(\d[\d,]*(?:\.\d{1,2})?)(?:\s*rupees?)?|\b(\d[\d,]*(?:\.\d{1,2})?)\s*(?:rupees?|rs\.?|inr|ரூபாய்)\b/i);
   if (currencyAmount) {
     const amount = Number((currencyAmount[1] || currencyAmount[2]).replaceAll(",", ""));
     return Number.isFinite(amount) && amount > 0 ? { amount, match: currencyAmount[0] } : null;
   }
-  const bareAmount = transcript.match(/\b\d[\d,]*(?:\.\d{1,2})?\b/);
-  if (bareAmount) {
-    const offset = bareAmount.index || 0;
-    const before = transcript.slice(0, offset).toLowerCase().trimEnd();
-    const after = transcript.slice(offset + bareAmount[0].length).toLowerCase().trimStart();
-    const spokenAsAmount = /(?:spent|paid|pay|add|record)$/.test(before) && /^(?:for|on|at|to)\b/.test(after);
-    const amount = Number(bareAmount[0].replaceAll(",", ""));
-    if (spokenAsAmount && Number.isFinite(amount) && amount > 0) {
-      return { amount, match: bareAmount[0] };
+
+  // 2. Check for multi-item dictations ("Vegetables 150, fruits 100")
+  const multi = parseMultiItems(transcript);
+  if (multi) {
+    const total = multi.reduce((sum, item) => sum + item.amount, 0);
+    return {
+      amount: total,
+      match: multi.map(m => m.raw).join(", "),
+      isMulti: true,
+      items: multi
+    };
+  }
+
+  // 3. Bare numeric amounts in natural statements ("Milk 60", "Vegetables 150", "Paid 120 for petrol")
+  const numberRegex = /\b(\d[\d,]*(?:\.\d{1,2})?)\b/g;
+  let numMatch;
+  while ((numMatch = numberRegex.exec(transcript)) !== null) {
+    const amountStr = numMatch[1];
+    const amountVal = Number(amountStr.replaceAll(",", ""));
+    const offset = numMatch.index;
+    const before = transcript.slice(0, offset).trimEnd();
+    const after = transcript.slice(offset + amountStr.length).trimStart();
+
+    if (amountVal <= 0) continue;
+    if (isTimeOrQuantityContext(before, after)) continue;
+
+    // Check if preceded by expense verbs or item noun
+    const expenseVerbBefore = /(?:spent|paid|pay|add|record|bought(?:\s+[\p{L}\p{M}\s]+)?\s+for|cost|costs)$/i.test(before);
+    const categoryOrNounBefore = CATEGORY_PATTERNS.some(([, pat]) => pat.test(before));
+    const nounPhraseBefore = /[\p{L}\p{M}]{2,}$/u.test(before) && !/(?:at|in|on|the|a|an|of)$/i.test(before);
+
+    if (expenseVerbBefore || categoryOrNounBefore || (nounPhraseBefore && before.length > 0)) {
+      return { amount: amountVal, match: amountStr };
     }
   }
 
+  // 4. Spoken number words ("eight hundred rupees", "இருநூறு ரூபாய்")
   const words = transcript.toLowerCase().match(/[\p{L}\p{M}]+/gu) || [];
   const starts = words.map((word, index) => NUMBER_WORDS[word] != null || TAMIL_NUMBERS[word] != null ? index : -1).filter(index => index >= 0);
   for (const start of starts) {
@@ -116,58 +183,62 @@ function dateForOffset(offset, now = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-const CATEGORY_PATTERNS = [
-  ["veg", /\b(vegetables?|veggies)\b|காய்கறி/u],
-  ["groc", /\b(grocer(?:y|ies)|food|supermarket)\b|மளிகை|உணவு/u],
-  ["milk", /\b(milk|dairy)\b|பால்/u],
-  ["snk", /\b(snack|snacks)\b|தின்பண்டம்/u],
-  ["rent", /\b(rent|lease|landlord)\b|வாடகை/u],
-  ["bill", /\b(electricity|electric|utility|utilities|bill|bills)\b|மின்சாரம்/u],
-  ["gas", /\b(cooking gas|gas)\b|எரிவாயு/u],
-  ["hlth", /\b(health|medical|medicine|medicines|doctor|pharmacy)\b|மருத்துவம்|மருந்து/u],
-  ["trans", /\b(transport(?:ation)?|taxi|uber|bus|train|petrol|fuel)\b|போக்குவரத்து/u],
-  ["shop", /\b(shopping|clothes|purchase)\b|கடைகள்/u],
-  ["fun", /\b(entertainment|movie|cinema|concert)\b|பொழுதுபோக்கு/u],
-  ["home", /\b(household|cleaning)\b|வீட்டுப் பொருட்கள்/u],
-  ["oth", /\b(other)\b/u]
-];
-
 function parseVoiceTranscript(transcript, { members = [], currentUserId = "", now = new Date() } = {}) {
   const text = String(transcript || "").trim();
   const amountResult = amountFromTranscript(text);
   const category = CATEGORY_PATTERNS.find(([, pattern]) => pattern.test(text))?.[0] || "";
-  const isYesterday = /\byesterday\b|நேற்று/u.test(text);
-  const isToday = /\btoday\b|இன்று/u.test(text);
+  const isYesterday = /\byesterday\b|நேற்று/ui.test(text);
+  const isToday = /\btoday\b|இன்று/ui.test(text);
   const occurred = isYesterday ? dateForOffset(-1, now) : isToday ? dateForOffset(0, now) : "";
+
   const identifiedMember = members.find(member => {
     if (!member.name || member.user_id === currentUserId) return false;
     return new RegExp(`\\b${member.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
   });
   const payerMention = /\b(dad|mom|father|mother|wife|husband|my partner)\b/i.test(text);
-  const selfMention = /\b(i|my)\b/i.test(text) || /^(?:நான்|என்)\b/u.test(text);
+  const selfMention = /\b(i|my|we)\b/i.test(text) || /^(?:நான்|என்)\b/u.test(text);
   const payer = identifiedMember?.user_id || (selfMention && !payerMention ? currentUserId : "");
-  const funding = /\b(personal|my own money|my pocket|own pocket)\b|சொந்தப் பணம்/u.test(text)
+  const funding = /\b(personal|my own money|my pocket|own pocket)\b|சொந்தப் பணம்/ui.test(text)
     ? "personal"
-    : /\b(shared|household money|common fund)\b|பொதுப் பணம்/u.test(text) ? "shared" : "";
+    : /\b(shared|household money|common fund)\b|பொதுப் பணம்/ui.test(text) ? "shared" : "";
 
-  let description = text
-    .replace(amountResult ? new RegExp(amountResult.match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : /$^/, " ")
-    .replace(/\b(i\s+)?(spent|paid|pay|add|record|expense|for|on|in|rupees?|rs\.?|inr|today|yesterday|dad|mom|father|mother|wife|husband|my|partner|at|the)\b/gi, " ")
-    .replace(/₹|ரூபாய்|எனது|செலவு|செலுத்தினேன்|இன்று|நேற்று|க்கு/gu, " ")
-    .replace(/[.,!?]/g, " ").replace(/\s+/g, " ").trim();
-  if (identifiedMember) {
-    description = description.replace(
-      new RegExp(`\\b${identifiedMember.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "ig"),
-      ""
-    ).trim();
+  let description = "";
+  let notes = "";
+
+  if (amountResult?.isMulti && amountResult.items) {
+    description = amountResult.items.map(i => i.label).join(", ");
+    notes = amountResult.items.map(i => `${i.label}: ₹${i.amount}`).join(", ");
+  } else {
+    description = text
+      .replace(amountResult ? new RegExp(amountResult.match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : /$^/, " ")
+      .replace(/\b(i|we|my)?\s*(spent|paid|pay|add|record|bought|expense|for|on|in|rupees?|rs\.?|inr|today|yesterday|dad|mom|father|mother|wife|husband|partner|at|the|a|an)\b/gi, " ")
+      .replace(/₹|ரூபாய்|எனது|செலவு|செலுத்தினேன்|இன்று|நேற்று|க்கு/gu, " ")
+      .replace(/[.,!?]/g, " ").replace(/\s+/g, " ").trim();
+
+    // Clean up leading filler words like "we"
+    description = description.replace(/^(?:we|i|my)\s+/i, "").trim();
+
+    if (identifiedMember) {
+      description = description.replace(
+        new RegExp(`\\b${identifiedMember.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "ig"),
+        ""
+      ).trim();
+    }
   }
+
+  // Capitalize description nicely
+  if (description) {
+    description = description.charAt(0).toUpperCase() + description.slice(1);
+  }
+
   return {
-    amount: amountResult?.amount?.toString() || "",
+    amount: amountResult?.amount != null ? amountResult.amount.toString() : "",
     category,
     description: description.slice(0, 120),
     occurred,
     paid_by: payer,
     funding,
+    notes: notes.slice(0, 150),
     needsPayer: payerMention && !identifiedMember
   };
 }

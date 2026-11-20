@@ -8,6 +8,7 @@ const output = join(root, "dist");
 const files = [
   "index.html",
   "app.js",
+  "version.js",
   "apk-updater.js",
   "accounting.js",
   "query-results.js",

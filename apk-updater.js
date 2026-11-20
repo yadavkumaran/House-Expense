@@ -1,4 +1,5 @@
-export const CURRENT_APP_VERSION = "1.4.0";
+import { CURRENT_APP_VERSION } from "./version.js";
+export { CURRENT_APP_VERSION };
 export const GITHUB_RELEASES_API = "https://api.github.com/repos/yadavkumaran/House-Expense/releases/latest";
 
 function parseVersion(value) {
@@ -29,14 +30,21 @@ export function getApkReleaseUpdate(release, currentVersion = CURRENT_APP_VERSIO
   const apkAssets = assets.filter(asset => typeof asset?.name === "string" && /\.apk$/i.test(asset.name));
   const asset = apkAssets.find(candidate => candidate.name.toLowerCase() === "app-debug.apk")
     || (apkAssets.length === 1 ? apkAssets[0] : null);
-  const expectedAssetPrefix = "https://github.com/yadavkumaran/House-Expense/releases/download/";
+  const validAssetPrefixes = [
+    "https://github.com/yadavkumaran/House-Expense/releases/download/",
+    "https://github.com/yadavkumaran/Hearth/releases/download/"
+  ];
 
   if (!asset || typeof asset.browser_download_url !== "string"
-    || !asset.browser_download_url.startsWith(expectedAssetPrefix)) {
+    || !validAssetPrefixes.some(prefix => asset.browser_download_url.startsWith(prefix))) {
     throw new Error("The latest release does not contain one valid House Expense APK.");
   }
+  const validHtmlPrefixes = [
+    "https://github.com/yadavkumaran/House-Expense/releases/tag/",
+    "https://github.com/yadavkumaran/Hearth/releases/tag/"
+  ];
   if (typeof release.html_url !== "string"
-    || !release.html_url.startsWith("https://github.com/yadavkumaran/House-Expense/releases/tag/")) {
+    || !validHtmlPrefixes.some(prefix => release.html_url.startsWith(prefix))) {
     throw new Error("The latest release page URL is invalid.");
   }
 

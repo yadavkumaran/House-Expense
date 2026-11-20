@@ -599,6 +599,39 @@ grant execute on function public.reverse_settlement(uuid) to authenticated;
 grant execute on function public.leave_household(uuid) to authenticated;
 grant execute on function public.delete_household_safe(uuid) to authenticated;
 
+create or replace function public.delete_user_account()
+returns void language plpgsql security definer set search_path = public
+as $$
+declare
+  owned_household_id uuid;
+  other_owners int;
+begin
+  if auth.uid() is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  for owned_household_id in
+    select household_id from public.household_members
+    where user_id = auth.uid() and role = 'owner'
+  loop
+    select count(*) into other_owners from public.household_members
+    where household_id = owned_household_id and role = 'owner' and user_id <> auth.uid();
+
+    if other_owners = 0 then
+      delete from public.households where id = owned_household_id;
+    else
+      delete from public.household_members where household_id = owned_household_id and user_id = auth.uid();
+    end if;
+  end loop;
+
+  delete from public.household_members where user_id = auth.uid();
+  delete from public.profiles where user_id = auth.uid();
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+grant execute on function public.delete_user_account() to authenticated;
+
 do $$
 declare realtime_table text;
 begin

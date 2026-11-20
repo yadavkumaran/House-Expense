@@ -86,7 +86,9 @@ const T = {
     contribute: "Record contribution", noGoals: "No savings goals yet.",
     exportCsv: "Download CSV", printPdf: "Print / PDF", audit: "Activity log",
     language: "Language", english: "English", tamil: "தமிழ்", signOut: "Sign out",
-    appUpdates: "App updates", installedVersion: "Installed version {version}",
+    deleteAccount: "Delete account", deleteAccountConfirm: "Permanently delete your account and associated personal data? If you are the sole owner of a household, that household will be deleted. This cannot be undone.",
+    deleteAccountSuccess: "Your account has been deleted.", deleteAccountBtn: "Delete permanently",
+    aboutApp: "About House Expense", installedVersion: "Installed version {version}",
     updateHelp: "Check the public GitHub release for a newer Android APK.",
     checkUpdates: "Check for updates", checkingUpdates: "Checking…",
     releaseNotFound: "No public latest release was found. The GitHub repository must be public and have a published stable APK release.",
@@ -135,15 +137,19 @@ const T = {
     noHousehold: "Create a household or join one with an invite code to begin.",
     signUpSuccess: "Account created. If email confirmation is enabled, confirm your address and then sign in.",
     voiceTitle: "Voice expense entry", voiceLanguage: "Speech language", voiceIdle: "Tap the microphone and describe an expense.",
-    voiceListening: "Recording… speak naturally, then stop.", voiceProcessing: "Processing recording…",
+    voiceListening: "Listening… speak naturally, then stop.", voiceProcessing: "Processing recognized speech…",
     voiceUploading: "Uploading audio securely…", voiceTranscribing: "Transcribing audio…",
     voiceReview: "Review the transcript and fields before recording.", voiceError: "Voice input stopped. Try again or enter manually.",
     voicePermission: "Microphone access was denied. Allow microphone access in browser settings.",
     voiceSecure: "Microphone requires HTTPS or localhost. Open over a secure connection.",
     voiceNoSpeech: "No speech was detected. Check microphone and try again.",
-    voiceTranscript: "Recognized transcript", voiceStart: "Start recording", voiceStop: "Stop recording",
+    voiceTranscript: "Recognized transcript", voiceStart: "Start listening", voiceStop: "Stop listening",
     voiceManual: "Enter manually", voiceReviewAction: "Review expense", voiceMissingAmount: "Couldn't identify an amount. Please enter it.",
     voicePayerUnknown: "Mentioned payer could not be matched. Please select payer.",
+    voiceRequestingPermission: "Requesting microphone permission…",
+    voiceUnsupportedBrowser: "Browser does not support speech recognition. Please enter expense details manually.",
+    voiceLangUnsupported: "Tamil speech recognition is not supported in this browser. Please switch to English or enter manually.",
+    voiceSuccess: "Speech recognized! Applying to expense…", voiceDone: "Done & Use",
     voiceTryAgain: "Try voice again", voiceConsent: "I agree to send audio securely to Groq for transcription.",
     voiceConsentNote: "Audio is transcribed via Groq API. Nothing is recorded until you review and save.",
     voiceSend: "Transcribe", voiceRecordAgain: "Record again", voiceRecording: "Recording",
@@ -228,7 +234,9 @@ const T = {
     deadline: "கடைசி நாள்", contribute: "சேமிப்பைப் பதிவு செய்", noGoals: "சேமிப்பு இலக்குகள் இல்லை.",
     exportCsv: "CSV பதிவிறக்கு", printPdf: "PDF அச்சிடு", audit: "செயல்பாட்டுப் பதிவு",
     language: "மொழி", english: "English", tamil: "தமிழ்", signOut: "வெளியேறு",
-    appUpdates: "செயலி புதுப்பிப்பு", installedVersion: "நிறுவிய பதிப்பு {version}",
+    deleteAccount: "கணக்கை நீக்கு", deleteAccountConfirm: "உங்கள் கணக்கையும் அதனுடன் தொடர்புடைய தனிப்பட்ட தரவையும் நிரந்தரமாக நீக்கவா? நீங்கள் ஒரு குடும்பத்தின் ஒரே உரிமையாளராக இருந்தால், அந்தக் குடும்பம் நீக்கப்படும். இதை மாற்ற முடியாது.",
+    deleteAccountSuccess: "உங்கள் கணக்கு நீக்கப்பட்டது.", deleteAccountBtn: "நிரந்தரமாக நீக்கு",
+    aboutApp: "House Expense பற்றி", installedVersion: "நிறுவிய பதிப்பு {version}",
     updateHelp: "புதிய Android APK-ஐ பொது GitHub வெளியீட்டில் சரிபார்க்கவும்.",
     checkUpdates: "புதுப்பிப்புகளைச் சரிபார்", checkingUpdates: "சரிபார்க்கிறது…",
     releaseNotFound: "பொது சமீபத்திய வெளியீடு இல்லை. GitHub களஞ்சியம் பொதுவாகவும் நிலையான APK வெளியீடு வெளியிடப்பட்டதாகவும் இருக்க வேண்டும்.",
@@ -270,6 +278,10 @@ const T = {
     voiceNoSpeech: "குரல் கண்டறியப்படவில்லை.", voiceTranscript: "அறியப்பட்ட உரை",
     voiceStart: "பதிவைத் தொடங்கு", voiceStop: "பதிவை நிறுத்து", voiceManual: "கைமுறையாக உள்ளிடவும்",
     voiceReviewAction: "சரிபார்", voiceMissingAmount: "தொகையை உள்ளிடவும்.", voicePayerUnknown: "பணம் செலுத்தியவரைத் தேர்ந்தெடுக்கவும்.",
+    voiceRequestingPermission: "மைக்ரோஃபோன் அனுமதி கோரப்படுகிறது…",
+    voiceUnsupportedBrowser: "இந்த உலாவியில் குரல் அறிதல் ஆதரிக்கப்படவில்லை. கைமுறையாக உள்ளிடவும்.",
+    voiceLangUnsupported: "இந்த உலாவியில் தமிழ் குரல் அறிதல் ஆதரிக்கப்படவில்லை. ஆங்கிலத்தில் முயலவும்.",
+    voiceSuccess: "பேச்சு அறியப்பட்டது! படிவத்தில் நிரப்பப்படுகிறது…", voiceDone: "முடிந்தது",
     voiceTryAgain: "மீண்டும் முயற்சி", voiceConsent: "Groq-க்கு பாதுகாப்பாக அனுப்ப ஒப்புக்கொள்கிறேன்.",
     voiceConsentNote: "ஒலி உரையாக்க Groq API-க்கு அனுப்பப்படும்.", voiceSend: "உரையாக்கு",
     voiceRecordAgain: "மீண்டும் பதிவு செய்", voiceRecording: "பதிவு", voiceRecorded: "தயாராக உள்ளது.",
@@ -1333,14 +1345,15 @@ function renderHousehold() {
     </section>
 
     <section class="panel">
-      <h3>${tr("appUpdates")}</h3>
+      <h3>${tr("aboutApp")}</h3>
       <p class="small muted">${tx("installedVersion", { version: CURRENT_APP_VERSION })}</p>
       <p class="small muted">${tr("updateHelp")}</p>
       <button class="button soft" type="button" data-action="check-app-update">${tr("checkUpdates")}</button>
     </section>
 
-    <div style="margin-top:16px;">
+    <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
       <button class="button danger" style="width:100%;" data-action="signout">${tr("signOut")}</button>
+      <button class="button soft" style="width:100%; color:var(--danger, #ef4444);" data-action="delete-account">${tr("deleteAccount")}</button>
     </div>
   `;
 }
@@ -2119,27 +2132,108 @@ async function digestFile(file) {
   return [...new Uint8Array(digest)].map(v => v.toString(16).padStart(2, "0")).join("");
 }
 
-// VOICE ENTRY WORKFLOW (100% PRESERVED & ENHANCED)
+// VOICE ENTRY WORKFLOW (HYBRID SPEECH RECOGNITION + REALTIME STREAMING + FALLBACK)
+class NativeAndroidSpeechRecognition {
+  constructor() {
+    this.continuous = true;
+    this.interimResults = true;
+    this.maxAlternatives = 1;
+    this.lang = "en-IN";
+    this.onstart = null;
+    this.onresult = null;
+    this.onerror = null;
+    this.onend = null;
+  }
+
+  start() {
+    window.__hearthSpeechOnReady = () => {};
+    window.__hearthSpeechOnStart = () => {
+      if (typeof this.onstart === "function") this.onstart();
+    };
+    window.__hearthSpeechOnPartial = (text) => {
+      if (typeof this.onresult === "function") {
+        const item = [{ transcript: text }];
+        item.isFinal = false;
+        this.onresult({
+          resultIndex: 0,
+          results: [item]
+        });
+      }
+    };
+    window.__hearthSpeechOnResults = (text) => {
+      if (typeof this.onresult === "function") {
+        const item = [{ transcript: text }];
+        item.isFinal = true;
+        this.onresult({
+          resultIndex: 0,
+          results: [item]
+        });
+      }
+      if (typeof this.onend === "function") {
+        this.onend();
+      }
+    };
+    window.__hearthSpeechOnError = (err) => {
+      if (typeof this.onerror === "function") {
+        this.onerror({ error: err });
+      }
+      if (typeof this.onend === "function") {
+        this.onend();
+      }
+    };
+    window.__hearthSpeechOnEndOfSpeech = () => {};
+
+    if (window.HearthNativeSpeech && typeof window.HearthNativeSpeech.startListening === "function") {
+      window.HearthNativeSpeech.startListening(this.lang);
+    }
+  }
+
+  stop() {
+    if (window.HearthNativeSpeech && typeof window.HearthNativeSpeech.stopListening === "function") {
+      window.HearthNativeSpeech.stopListening();
+    }
+  }
+
+  abort() {
+    if (window.HearthNativeSpeech && typeof window.HearthNativeSpeech.abort === "function") {
+      window.HearthNativeSpeech.abort();
+    }
+  }
+}
+
+function resolveSpeechRecognitionEngine() {
+  if (typeof window !== "undefined") {
+    if (window.HearthNativeSpeech && typeof window.HearthNativeSpeech.isAvailable === "function" && window.HearthNativeSpeech.isAvailable()) {
+      return NativeAndroidSpeechRecognition;
+    }
+    if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+      return window.SpeechRecognition || window.webkitSpeechRecognition;
+    }
+  }
+  return null;
+}
+
 function openVoiceEntry() {
   closeModal();
   const secure = window.isSecureContext || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  const SpeechEngine = resolveSpeechRecognitionEngine();
   const session = {
     id: ++voiceSequence,
     language: state.profile?.language === "ta" ? "ta" : "en",
     status: "idle",
     transcript: "",
+    finalTranscript: "",
+    interim: "",
     draft: null,
     error: !secure ? tr("voiceSecure") : "",
-    blob: null,
+    recognition: null,
     recorder: null,
     stream: null,
     chunks: [],
-    upload: null,
     timer: null,
     startedAt: 0,
     durationSeconds: 0,
-    consent: false,
-    uploadPercent: null
+    useFallback: !SpeechEngine
   };
   if (!secure) session.status = "error";
   state.voice = session;
@@ -2148,7 +2242,7 @@ function openVoiceEntry() {
     <div class="voice-panel" data-voice-panel>
       <label class="field-label">${tr("voiceLanguage")}
         <select class="field" data-voice-language>
-          <option value="en" ${session.language === "en" ? "selected" : ""}>English</option>
+          <option value="en" ${session.language === "en" ? "selected" : ""}>English (India)</option>
           <option value="ta" ${session.language === "ta" ? "selected" : ""}>தமிழ்</option>
         </select>
       </label>
@@ -2160,23 +2254,21 @@ function openVoiceEntry() {
       </div>
       <section class="voice-transcript">
         <div class="small muted">${tr("voiceTranscript")}</div>
-        <p data-voice-transcript aria-live="polite"></p>
+        <p data-voice-transcript aria-live="polite" style="font-size:16px; min-height:48px; margin:6px 0 0;"></p>
       </section>
       <div class="notice warn ${session.error ? "" : "hidden"}" data-voice-error role="alert">${esc(session.error)}</div>
-      <p class="small muted">${tr("voiceConsentNote")}</p>
-      <label class="voice-consent">
-        <input class="check" type="checkbox" data-voice-consent>
-        <span>${tr("voiceConsent")}</span>
-      </label>
       <div class="voice-actions">
-        <button class="button soft" type="button" data-action="voice-again">${tr("voiceRecordAgain")}</button>
-        <button class="button primary" type="button" data-action="voice-transcribe" disabled>${tr("voiceSend")}</button>
-        <button class="button primary hidden" type="button" data-action="voice-review" disabled>${tr("voiceReviewAction")}</button>
+        <button class="button soft" type="button" data-action="voice-again">${tr("voiceTryAgain")}</button>
+        <button class="button primary" type="button" data-action="voice-done">${tr("voiceDone")}</button>
         <button class="button" type="button" data-action="voice-cancel">${tr("voiceManual")}</button>
       </div>
     </div>
   `);
+
   renderVoiceFeedback(session);
+  if (secure && session.status !== "error") {
+    startVoice();
+  }
 }
 
 function renderVoiceFeedback(session) {
@@ -2185,14 +2277,24 @@ function renderVoiceFeedback(session) {
   if (!panel) return;
 
   const statusText = {
-    idle: tr("voiceIdle"), recording: tr("voiceListening"), processing: tr("voiceProcessing"),
-    recorded: tr("voiceRecorded"), uploading: session.uploadPercent == null
-      ? tr("voiceUploading") : tx("voiceUploadProgress", { percent: session.uploadPercent }),
-    transcribing: tr("voiceTranscribing"), review: tr("voiceReview"), error: tr("voiceError")
-  }[session.status];
+    idle: tr("voiceIdle"),
+    requesting: tr("voiceRequestingPermission"),
+    listening: tr("voiceListening"),
+    recording: tr("voiceListening"),
+    processing: tr("voiceProcessing"),
+    success: tr("voiceSuccess"),
+    error: session.error || tr("voiceError")
+  }[session.status] || tr("voiceIdle");
 
   panel.querySelector("[data-voice-status]").textContent = statusText;
-  panel.querySelector("[data-voice-transcript]").textContent = session.transcript || "—";
+
+  const transcriptEl = panel.querySelector("[data-voice-transcript]");
+  if (session.transcript || session.interim) {
+    transcriptEl.innerHTML = esc(session.transcript) + (session.interim ? ` <span style="opacity:0.6; font-style:italic;">${esc(session.interim)}</span>` : "");
+  } else {
+    transcriptEl.textContent = "—";
+  }
+
   const alert = panel.querySelector("[data-voice-error]");
   const alertText = session.error || (session.draft && !session.draft.amount ? tr("voiceMissingAmount") :
     session.draft?.needsPayer ? tr("voicePayerUnknown") : "");
@@ -2200,19 +2302,18 @@ function renderVoiceFeedback(session) {
   alert.classList.toggle("hidden", !alertText);
 
   const button = panel.querySelector('[data-action="voice-start"]');
-  button.textContent = session.status === "recording" ? "■" : "🎙";
-  panel.querySelector("[data-voice-wave]").classList.toggle("active", session.status === "recording");
+  const isListening = session.status === "listening" || session.status === "recording";
+  button.textContent = isListening ? "■" : "🎙";
+  panel.querySelector("[data-voice-wave]").classList.toggle("active", isListening);
 
   const minutes = String(Math.floor(session.durationSeconds / 60)).padStart(2, "0");
   const seconds = String(session.durationSeconds % 60).padStart(2, "0");
   panel.querySelector("[data-voice-timer]").textContent = `${minutes}:${seconds} / 01:00`;
 
-  panel.querySelector('[data-action="voice-transcribe"]').disabled = !(session.status === "recorded" && session.consent && session.blob);
-  panel.querySelector('[data-action="voice-transcribe"]').classList.toggle("hidden", session.status === "review");
-
-  const reviewBtn = panel.querySelector('[data-action="voice-review"]');
-  reviewBtn.classList.toggle("hidden", session.status !== "review");
-  reviewBtn.disabled = session.status !== "review" || !session.draft;
+  const doneBtn = panel.querySelector('[data-action="voice-done"]');
+  if (doneBtn) {
+    doneBtn.disabled = !session.transcript?.trim() && !session.draft;
+  }
 }
 
 async function startVoice() {
@@ -2220,19 +2321,126 @@ async function startVoice() {
   if (!session) return;
   session.error = "";
   session.transcript = "";
+  session.finalTranscript = "";
+  session.interim = "";
   session.draft = null;
-  session.chunks = [];
 
+  const SpeechEngine = resolveSpeechRecognitionEngine();
+  if (SpeechEngine) {
+    try {
+      disposeVoiceSession(session);
+      state.voice = session;
+      session.status = "requesting";
+      renderVoiceFeedback(session);
+
+      const recognition = new SpeechEngine();
+      session.recognition = recognition;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.lang = session.language === "ta" ? "ta-IN" : "en-IN";
+
+      recognition.onstart = () => {
+        if (state.voice !== session) return;
+        session.status = "listening";
+        session.startedAt = Date.now();
+        session.durationSeconds = 0;
+        clearInterval(session.timer);
+        session.timer = setInterval(() => {
+          if (state.voice !== session) return;
+          session.durationSeconds = Math.min(60, Math.floor((Date.now() - session.startedAt) / 1000));
+          renderVoiceFeedback(session);
+          if (session.durationSeconds >= 60) stopVoice();
+        }, 500);
+        renderVoiceFeedback(session);
+      };
+
+      recognition.onresult = event => {
+        if (state.voice !== session) return;
+        let interim = "";
+        let final = session.finalTranscript || "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const res = event.results[i];
+          const text = res[0]?.transcript || "";
+          if (res.isFinal) {
+            final = (final + " " + text).trim();
+          } else {
+            interim = (interim + " " + text).trim();
+          }
+        }
+        session.finalTranscript = final;
+        session.interim = interim;
+        session.transcript = (final + (interim ? " " + interim : "")).trim();
+        if (session.transcript) {
+          session.draft = parseVoiceTranscript(session.transcript, {
+            members: state.members,
+            currentUserId: state.user?.id
+          });
+        }
+        renderVoiceFeedback(session);
+      };
+
+      recognition.onerror = event => {
+        if (state.voice !== session) return;
+        clearInterval(session.timer);
+        const err = event.error;
+        if (err === "not-allowed" || err === "service-not-allowed") {
+          session.status = "error";
+          session.error = tr("voicePermission");
+        } else if (err === "no-speech") {
+          session.status = "error";
+          session.error = tr("voiceNoSpeech");
+        } else if (err === "audio-capture") {
+          session.status = "error";
+          session.error = tr("voiceNoMicrophone");
+        } else if (err === "language-not-supported") {
+          session.status = "error";
+          session.error = tr("voiceLangUnsupported");
+        } else if (err === "network") {
+          session.status = "error";
+          session.error = tr("voiceNetworkError");
+        } else if (err !== "aborted") {
+          session.status = "error";
+          session.error = tr("voiceError");
+        }
+        renderVoiceFeedback(session);
+      };
+
+      recognition.onend = () => {
+        if (state.voice !== session) return;
+        clearInterval(session.timer);
+        if (session.status === "listening" || session.status === "processing") {
+          if (session.transcript.trim()) {
+            applyVoiceResult(session);
+          } else {
+            session.status = "idle";
+            renderVoiceFeedback(session);
+          }
+        }
+      };
+
+      recognition.start();
+      return;
+    } catch (err) {
+      console.warn("SpeechRecognition start failed, falling back:", err);
+    }
+  }
+
+  // Fallback: MediaRecorder + Supabase Edge Function
   try {
+    session.status = "requesting";
+    renderVoiceFeedback(session);
     session.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"]
       .find(type => MediaRecorder.isTypeSupported?.(type)) || "";
     session.recorder = new MediaRecorder(session.stream, mimeType ? { mimeType } : undefined);
+    session.chunks = [];
     session.recorder.ondataavailable = event => { if (event.data?.size) session.chunks.push(event.data); };
     session.recorder.onstop = () => {
       session.blob = new Blob(session.chunks, { type: session.recorder?.mimeType || "audio/webm" });
-      session.status = session.error ? "error" : "recorded";
-      renderVoiceFeedback(session);
+      if (!session.error && session.blob.size > 0) {
+        transcribeVoice(session);
+      }
     };
 
     session.startedAt = Date.now();
@@ -2249,32 +2457,100 @@ async function startVoice() {
     renderVoiceFeedback(session);
   } catch (err) {
     session.status = "error";
-    session.error = tr("voicePermission");
+    session.error = !resolveSpeechRecognitionEngine() && !navigator.mediaDevices?.getUserMedia
+      ? tr("voiceUnsupportedBrowser")
+      : tr("voicePermission");
     renderVoiceFeedback(session);
   }
 }
 
 function stopVoice() {
   const session = state.voice;
-  if (!session || session.status !== "recording") return;
+  if (!session) return;
   clearInterval(session.timer);
   session.durationSeconds = Math.min(60, Math.floor((Date.now() - session.startedAt) / 1000));
-  session.status = "processing";
-  session.recorder?.stop();
-  session.stream?.getTracks().forEach(t => t.stop());
+
+  if (session.recognition) {
+    session.status = "processing";
+    renderVoiceFeedback(session);
+    try { session.recognition.stop(); } catch {}
+    if (session.transcript.trim()) {
+      applyVoiceResult(session);
+    } else {
+      session.status = "idle";
+      renderVoiceFeedback(session);
+    }
+    return;
+  }
+
+  if (session.recorder && session.recorder.state === "recording") {
+    session.status = "processing";
+    session.recorder.stop();
+    session.stream?.getTracks().forEach(t => t.stop());
+    renderVoiceFeedback(session);
+  }
+}
+
+function applyVoiceResult(session) {
+  if (!session?.transcript?.trim()) return;
+  session.status = "success";
   renderVoiceFeedback(session);
+
+  const transcript = session.transcript.trim();
+  const draft = session.draft || parseVoiceTranscript(transcript, {
+    members: state.members,
+    currentUserId: state.user?.id
+  });
+
+  const voiceMessage = [
+    `🎙 "${transcript}"`,
+    !draft.amount ? tr("voiceMissingAmount") : "",
+    draft.needsPayer ? tr("voicePayerUnknown") : ""
+  ].filter(Boolean).join(" — ");
+
+  disposeVoiceSession(session);
+  closeModal();
+
+  expenseForm({
+    amount: draft.amount || "",
+    category: draft.category || "veg",
+    description: draft.description || "",
+    occurred: draft.occurred || today(),
+    paid_by: draft.paid_by || state.user?.id,
+    funding: draft.funding || "shared",
+    notes: draft.notes || "",
+    voiceMessage
+  });
 }
 
 function disposeVoiceSession(session) {
   if (!session) return;
   clearInterval(session.timer);
-  session.stream?.getTracks().forEach(t => t.stop());
+  if (session.recognition) {
+    try {
+      session.recognition.onstart = null;
+      session.recognition.onresult = null;
+      session.recognition.onerror = null;
+      session.recognition.onend = null;
+      session.recognition.abort();
+    } catch {}
+    session.recognition = null;
+  }
+  if (session.stream) {
+    session.stream.getTracks().forEach(t => t.stop());
+    session.stream = null;
+  }
+  if (session.recorder && session.recorder.state === "recording") {
+    try { session.recorder.stop(); } catch {}
+  }
   session.recorder = null;
-  session.stream = null;
+  if (state.voice === session) {
+    state.voice = null;
+  }
 }
 
 async function transcribeVoice(session) {
-  if (!session?.blob || !session.consent) return;
+  if (!session?.blob) return;
   session.status = "uploading";
   session.uploadPercent = 0;
   renderVoiceFeedback(session);
@@ -2287,8 +2563,9 @@ async function transcribeVoice(session) {
   }
 
   const formData = new FormData();
-  formData.append("audio", session.blob, "recording.webm");
+  formData.append("file", session.blob, "recording.webm");
   formData.append("language", session.language);
+  formData.append("duration_seconds", String(session.durationSeconds || 1));
 
   const functionUrl = `${state.client.supabaseUrl}/functions/v1/transcribe-expense`;
   const request = new XMLHttpRequest();
@@ -2306,13 +2583,12 @@ async function transcribeVoice(session) {
     try { payload = JSON.parse(request.responseText || "{}"); } catch {}
 
     if (request.status >= 200 && request.status < 300 && payload.transcript) {
-      session.status = "review";
       session.transcript = payload.transcript;
       session.draft = parseVoiceTranscript(payload.transcript, {
         members: state.members,
         currentUserId: state.user.id
       });
-      renderVoiceFeedback(session);
+      applyVoiceResult(session);
     } else {
       session.status = "error";
       session.error = tr(transcriptionFailureKey(request.status, payload.code));
@@ -2329,19 +2605,6 @@ async function transcribeVoice(session) {
   request.open("POST", functionUrl);
   request.setRequestHeader("Authorization", `Bearer ${authSession.access_token}`);
   request.send(formData);
-}
-
-function reviewVoiceExpense() {
-  const session = state.voice;
-  if (!session?.draft || !session.transcript) return;
-  const draft = session.draft;
-  const voiceMessage = [
-    session.transcript,
-    !draft.amount ? tr("voiceMissingAmount") : "",
-    draft.needsPayer ? tr("voicePayerUnknown") : ""
-  ].filter(Boolean).join(" — ");
-  closeModal();
-  expenseForm({ ...draft, occurred: draft.occurred || today(), voiceMessage });
 }
 
 // RECURRING BILL FORMS
@@ -2898,9 +3161,9 @@ async function handleAction(button) {
           flash(tr("appUpToDate"));
           break;
         }
-        modal(tr("appUpdates"), `
+        modal(tr("aboutApp"), `
           <p>${esc(tx("updateAvailable", { version: update.version }))}</p>
-          <a class="button primary" href="${esc(update.downloadUrl)}">${tr("downloadUpdate")}</a>
+          <a class="button primary" href="${esc(update.downloadUrl)}" target="_blank" rel="noopener noreferrer">${tr("downloadUpdate")}</a>
         `);
       } finally {
         if (button.isConnected) {
@@ -2973,25 +3236,26 @@ async function handleAction(button) {
     case "close": case "dismiss": closeModal(); break;
     case "voice": openVoiceEntry(); break;
     case "voice-start":
-      if (state.voice?.status === "recording") stopVoice();
+      if (state.voice?.status === "listening" || state.voice?.status === "recording") stopVoice();
       else startVoice();
+      break;
+    case "voice-done":
+      if (state.voice) {
+        if (state.voice.status === "listening" || state.voice.status === "recording") stopVoice();
+        else applyVoiceResult(state.voice);
+      }
       break;
     case "voice-again":
       if (state.voice) {
-        state.voice.blob = null;
-        state.voice.transcript = "";
-        state.voice.draft = null;
-        state.voice.error = "";
-        state.voice.status = "idle";
-        state.voice.consent = false;
-        modalRoot.querySelector("[data-voice-consent]").checked = false;
-        renderVoiceFeedback(state.voice);
-        startVoice();
+        disposeVoiceSession(state.voice);
+        openVoiceEntry();
       }
       break;
-    case "voice-transcribe": transcribeVoice(state.voice); break;
-    case "voice-review": reviewVoiceExpense(); break;
-    case "voice-cancel": closeModal(); expenseForm(); break;
+    case "voice-cancel":
+      disposeVoiceSession(state.voice);
+      closeModal();
+      expenseForm();
+      break;
 
     case "view-expense":
       viewExpenseDetails(id);
@@ -3484,6 +3748,36 @@ async function handleAction(button) {
       render();
       break;
 
+    case "delete-account":
+      modal(tr("deleteAccount"), `
+        <p>${esc(tr("deleteAccountConfirm"))}</p>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+          <button class="button soft" type="button" data-action="close">${tr("close")}</button>
+          <button class="button danger" type="button" data-action="confirm-delete-account">${tr("deleteAccountBtn")}</button>
+        </div>
+      `);
+      break;
+
+    case "confirm-delete-account": {
+      button.disabled = true;
+      try {
+        const { error } = await state.client.rpc("delete_user_account");
+        if (error) throw error;
+        closeModal();
+        flash(tr("deleteAccountSuccess"));
+        state.subscription?.unsubscribe();
+        await state.client.auth.signOut();
+        state.user = null;
+        state.profile = null;
+        state.room = null;
+        render();
+      } catch (err) {
+        button.disabled = false;
+        showError(err);
+      }
+      break;
+    }
+
     default: break;
   }
 }
@@ -3569,11 +3863,12 @@ document.addEventListener("change", async event => {
       render();
     }
   } else if (target.matches("[data-voice-language]")) {
-    if (state.voice) state.voice.language = target.value;
-  } else if (target.matches("[data-voice-consent]")) {
     if (state.voice) {
-      state.voice.consent = target.checked;
-      renderVoiceFeedback(state.voice);
+      state.voice.language = target.value;
+      if (state.voice.status === "listening" || state.voice.status === "recording") {
+        stopVoice();
+        setTimeout(() => startVoice(), 150);
+      }
     }
   } else if (target.matches('[data-action="receipt"]')) {
     try { await scanReceipt(target.files?.[0]); } catch (error) { showError(error); }

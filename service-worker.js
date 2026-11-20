@@ -3,6 +3,7 @@ const SHELL_FILES = [
   "./",
   "./index.html",
   "./app.js",
+  "./version.js",
   "./apk-updater.js",
   "./accounting.js",
   "./query-results.js",
