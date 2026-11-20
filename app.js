@@ -85,6 +85,13 @@ const T = {
     goalAdd: "Create savings goal", target: "Target amount", deadline: "Deadline",
     contribute: "Record contribution", noGoals: "No savings goals yet.",
     exportCsv: "Download CSV", printPdf: "Print / PDF", audit: "Activity log",
+    voiceLanguagePref: "Voice language (dictation)", voiceLanguagePrefHelp: "Saved as your preference for expense dictation. Can override in the voice panel.",
+    voiceNicknamesTitle: "Voice nicknames \u0026 aliases",
+    voiceNicknamesHelp: "Teach Hearth who you mean when you say \"Dad\", \"Amma\", \"Anna\" etc. Used during voice expense entry.",
+    voiceNicknameWhenISay: "When I say\u2026", voiceNicknameIMean: "\u2026I mean (member)",
+    voiceNicknameHint: "e.g. Dad, Appa, Anna, Amma, Chinna",
+    voiceNicknameAdd: "Add nickname", voiceNicknameAdded: "Nickname saved.",
+    voiceNicknameDeleted: "Nickname removed.", voiceNicknameEmpty: "Enter a nickname first.",
     language: "Language", english: "English", tamil: "தமிழ்", signOut: "Sign out",
     deleteAccount: "Delete account", deleteAccountConfirm: "Permanently delete your account and associated personal data? If you are the sole owner of a household, that household will be deleted. This cannot be undone.",
     deleteAccountSuccess: "Your account has been deleted.", deleteAccountBtn: "Delete permanently",
@@ -233,6 +240,13 @@ const T = {
     reminders: "செலுத்த வேண்டிய தேதிகள் இங்கே தெரியும்.", goalAdd: "சேமிப்பு இலக்கு", target: "இலக்கு தொகை",
     deadline: "கடைசி நாள்", contribute: "சேமிப்பைப் பதிவு செய்", noGoals: "சேமிப்பு இலக்குகள் இல்லை.",
     exportCsv: "CSV பதிவிறக்கு", printPdf: "PDF அச்சிடு", audit: "செயல்பாட்டுப் பதிவு",
+    voiceLanguagePref: "குரல் மொழி அமைப்பு", voiceLanguagePrefHelp: "செலவைப் பதிவுக்கான மொழி உரிமை அமைப்புக்காக சேமிக்கப்படும்.",
+    voiceNicknamesTitle: "குரல் முசுக்குப் பெயர்கள் மற்றும் மாற்பெயர்கள்",
+    voiceNicknamesHelp: "அப்பா, அம்மா, ஆன்னா என்று சொல்லும்போது என்ன முடியும் என்பதைக் கற்றுக்கை கை்ததைய்தரவும்.",
+    voiceNicknameWhenISay: "நான் சொல்வது…", voiceNicknameIMean: "…இவர் என்பதைக் குறிக்கிறு",
+    voiceNicknameHint: "எ.கா. அப்பா, அம்மா, ஆன்னா, சின்னா",
+    voiceNicknameAdd: "முசுக்குப் பெயர் சேர்", voiceNicknameAdded: "முசுக்குப் பெயர் சேமிக்கப்பட்டது.",
+    voiceNicknameDeleted: "முசுக்குப் பெயர் நீக்கப்பட்டது.", voiceNicknameEmpty: "முசுக்குப் பெயரை உள்ளிடவும்.",
     language: "மொழி", english: "English", tamil: "தமிழ்", signOut: "வெளியேறு",
     deleteAccount: "கணக்கை நீக்கு", deleteAccountConfirm: "உங்கள் கணக்கையும் அதனுடன் தொடர்புடைய தனிப்பட்ட தரவையும் நிரந்தரமாக நீக்கவா? நீங்கள் ஒரு குடும்பத்தின் ஒரே உரிமையாளராக இருந்தால், அந்தக் குடும்பம் நீக்கப்படும். இதை மாற்ற முடியாது.",
     deleteAccountSuccess: "உங்கள் கணக்கு நீக்கப்பட்டது.", deleteAccountBtn: "நிரந்தரமாக நீக்கு",
@@ -411,7 +425,8 @@ const state = {
   realtimeRefreshTimer: null,
   listening: null,
   receiptUrl: null,
-  voice: null
+  voice: null,
+  memberAliases: []
 };
 
 state.uiPreferences = loadUiPreferences();
@@ -1237,6 +1252,55 @@ function renderHousehold() {
       </div>
     </section>
 
+    <!-- 2b. Voice Nicknames / Aliases -->
+    <section class="panel" id="voice-nicknames-section">
+      <div class="between" style="margin-bottom:6px;">
+        <div>
+          <h3>${tr("voiceNicknamesTitle")}</h3>
+          <div class="small muted" style="margin-top:2px;">${tr("voiceNicknamesHelp")}</div>
+        </div>
+      </div>
+
+      <div class="list" id="alias-list" style="margin-bottom:12px;">
+        ${(state.memberAliases || []).length === 0
+          ? `<div class="empty small">No nicknames added yet. Add one below.</div>`
+          : (state.memberAliases || []).map(a => {
+              const member = state.members.find(m => m.user_id === a.user_id);
+              return `
+                <div class="list-row">
+                  <div class="grow">
+                    <span class="tag" style="font-size:13px; margin-right:6px;">${esc(a.alias)}</span>
+                    <span class="small muted">→ ${esc(member?.name || a.user_id)}</span>
+                  </div>
+                  <button class="button sm danger" data-action="delete-voice-alias" data-id="${a.id}">×</button>
+                </div>`;
+            }).join("")
+        }
+      </div>
+
+      <div class="voice-quick-aliases">
+        <span class="tiny muted" style="align-self:center;">Quick add:</span>
+        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Dad">+ Dad</button>
+        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Mom">+ Mom</button>
+        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Appa">+ Appa</button>
+        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Amma">+ Amma</button>
+        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Anna">+ Anna</button>
+        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Bro">+ Bro</button>
+      </div>
+
+      <form data-form="add-voice-alias" style="display:flex; flex-direction:column; gap:8px;">
+        <div class="grid-two" style="gap:8px;">
+          <label class="field-label">${tr("voiceNicknameWhenISay")}
+            <input class="field" name="alias" maxlength="40" placeholder="${tr("voiceNicknameHint")}" autocomplete="off">
+          </label>
+          <label class="field-label">${tr("voiceNicknameIMean")}
+            ${memberSelect(state.user?.id, "alias_member")}
+          </label>
+        </div>
+        <button class="button soft sm" type="submit" style="align-self:flex-start;">${tr("voiceNicknameAdd")}</button>
+      </form>
+    </section>
+
     <!-- 3. Rooms & Spaces Management -->
     <section class="panel">
       <div class="between">
@@ -1340,6 +1404,13 @@ function renderHousehold() {
           <option value="en" ${state.profile.language === "en" ? "selected" : ""}>English</option>
           <option value="ta" ${state.profile.language === "ta" ? "selected" : ""}>தமிழ்</option>
         </select></label>
+        <label class="field-label" style="margin-top:8px;">${tr("voiceLanguagePref")}
+          <span class="small muted" style="display:block; margin-bottom:4px; font-weight:normal;">${tr("voiceLanguagePrefHelp")}</span>
+          <select class="field" name="voice_language">
+            <option value="en" ${(localStorage.getItem("hearth_voice_language")||"en")==="en" ? "selected" : ""}>English (India)</option>
+            <option value="ta" ${(localStorage.getItem("hearth_voice_language")||"")==="ta" ? "selected" : ""}>தமிழ் (Tamil)</option>
+          </select>
+        </label>
         <button class="button primary" style="margin-top:12px;">${tr("save")}</button>
       </form>
     </section>
@@ -1731,10 +1802,11 @@ async function refreshRoom() {
     state.client.from("rooms").select("*").eq("household_id", roomId).order("created_at"),
     state.client.from("custom_categories").select("*").eq("household_id", roomId),
     state.client.from("payment_methods").select("*").eq("household_id", roomId),
-    state.client.from("spending_alerts").select("*").eq("household_id", roomId)
+    state.client.from("spending_alerts").select("*").eq("household_id", roomId),
+    state.client.from("household_member_aliases").select("*").eq("household_id", roomId).order("created_at")
   ]);
 
-  const [expRes, budRes, billRes, shopRes, goalRes, contRes, settRes, actRes, profRes, roomsRes, custCatRes, payMethRes, alertRes] = queries;
+  const [expRes, budRes, billRes, shopRes, goalRes, contRes, settRes, actRes, profRes, roomsRes, custCatRes, payMethRes, alertRes, aliasRes] = queries;
 
   const expenses = queryRows(expRes, "expenses");
   const budgets = queryRows(budRes, "budgets");
@@ -1749,6 +1821,7 @@ async function refreshRoom() {
   const customCategories = queryRows(custCatRes, "custom categories", true);
   const paymentMethods = queryRows(payMethRes, "payment methods", true);
   const spendingAlerts = queryRows(alertRes, "spending alerts", true);
+  const memberAliases = queryRows(aliasRes, "member aliases", true);
 
   if (state.room?.id !== roomId) return;
 
@@ -1772,6 +1845,7 @@ async function refreshRoom() {
   state.customCategories = customCategories;
   state.paymentMethods = paymentMethods;
   state.spendingAlerts = spendingAlerts;
+  state.memberAliases = memberAliases;
 
   render();
 }
@@ -1834,7 +1908,7 @@ function subscribeRealtime() {
     "expenses", "category_budgets", "recurring_bills", "shopping_items",
     "savings_goals", "savings_contributions", "settlements", "activity_events",
     "household_members", "rooms", "custom_categories", "payment_methods",
-    "spending_alerts"
+    "spending_alerts", "household_member_aliases"
   ];
   const queueRefresh = reloadHouseholds => {
     clearTimeout(state.realtimeRefreshTimer);
@@ -2219,7 +2293,7 @@ function openVoiceEntry() {
   const SpeechEngine = resolveSpeechRecognitionEngine();
   const session = {
     id: ++voiceSequence,
-    language: state.profile?.language === "ta" ? "ta" : "en",
+    language: localStorage.getItem("hearth_voice_language") || (state.profile?.language === "ta" ? "ta" : "en"),
     status: "idle",
     transcript: "",
     finalTranscript: "",
@@ -2243,9 +2317,14 @@ function openVoiceEntry() {
       <label class="field-label">${tr("voiceLanguage")}
         <select class="field" data-voice-language>
           <option value="en" ${session.language === "en" ? "selected" : ""}>English (India)</option>
-          <option value="ta" ${session.language === "ta" ? "selected" : ""}>தமிழ்</option>
+          <option value="ta" ${session.language === "ta" ? "selected" : ""}>தமிழ் (Tamil)</option>
         </select>
       </label>
+      <div class="voice-hint-box" data-voice-hint>
+        ${session.language === "ta"
+          ? '💡 சொல்லுங்கள்: <em>"பால் 60 ரூபாய்"</em>, <em>"அப்பா 500 மளிகை வாங்கினார்"</em>, <em>"காய்கறி 150 பழங்கள் 100"</em>'
+          : '💡 Try: <em>"Milk 60 rupees"</em>, <em>"Dad paid 500 for groceries"</em>, <em>"Vegetables 150 and fruits 100"</em>'}
+      </div>
       <div class="voice-stage">
         <div class="voice-wave" data-voice-wave aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
         <button class="mic-button" type="button" data-action="voice-start" aria-label="${tr("voiceStart")}">🎙</button>
@@ -2255,6 +2334,7 @@ function openVoiceEntry() {
       <section class="voice-transcript">
         <div class="small muted">${tr("voiceTranscript")}</div>
         <p data-voice-transcript aria-live="polite" style="font-size:16px; min-height:48px; margin:6px 0 0;"></p>
+        <div data-voice-live-preview class="voice-live-chips hidden"></div>
       </section>
       <div class="notice warn ${session.error ? "" : "hidden"}" data-voice-error role="alert">${esc(session.error)}</div>
       <div class="voice-actions">
@@ -2313,6 +2393,35 @@ function renderVoiceFeedback(session) {
   const doneBtn = panel.querySelector('[data-action="voice-done"]');
   if (doneBtn) {
     doneBtn.disabled = !session.transcript?.trim() && !session.draft;
+  }
+
+  const previewEl = panel.querySelector("[data-voice-live-preview]");
+  if (previewEl) {
+    const textToParse = (session.transcript || session.interim || "").trim();
+    if (textToParse) {
+      const parsed = parseVoiceTranscript(textToParse, {
+        members: state.members,
+        memberAliases: state.memberAliases || [],
+        currentUserId: state.user?.id
+      });
+      const items = parsed.expenses?.length ? parsed.expenses : (parsed.amount || parsed.description ? [parsed] : []);
+      if (items.length) {
+        previewEl.innerHTML = items.map(it => {
+          const payerName = it.paid_by ? (state.members.find(m => (m.user_id || m.id) === it.paid_by)?.name || "") : "";
+          return `<span class="tag" style="background:var(--accent-soft, #e0f2fe); color:var(--accent, #0284c7); font-size:12px; font-weight:600;">` +
+            `₹${it.amount || "?"} · ${esc(it.description || "Expense")} · ${esc(categoryName(it.category || "oth"))}` +
+            (payerName ? ` · 👤 ${esc(payerName)}` : "") +
+            `</span>`;
+        }).join(" ");
+        previewEl.classList.remove("hidden");
+      } else {
+        previewEl.innerHTML = "";
+        previewEl.classList.add("hidden");
+      }
+    } else {
+      previewEl.innerHTML = "";
+      previewEl.classList.add("hidden");
+    }
   }
 }
 
@@ -2411,7 +2520,7 @@ async function startVoice() {
         clearInterval(session.timer);
         if (session.status === "listening" || session.status === "processing") {
           if (session.transcript.trim()) {
-            applyVoiceResult(session);
+            applyVoiceResult(session).catch(showError);
           } else {
             session.status = "idle";
             renderVoiceFeedback(session);
@@ -2475,7 +2584,7 @@ function stopVoice() {
     renderVoiceFeedback(session);
     try { session.recognition.stop(); } catch {}
     if (session.transcript.trim()) {
-      applyVoiceResult(session);
+      applyVoiceResult(session).catch(showError);
     } else {
       session.status = "idle";
       renderVoiceFeedback(session);
@@ -2491,36 +2600,235 @@ function stopVoice() {
   }
 }
 
-function applyVoiceResult(session) {
+async function applyVoiceResult(session) {
   if (!session?.transcript?.trim()) return;
-  session.status = "success";
+  session.status = "processing";
   renderVoiceFeedback(session);
 
   const transcript = session.transcript.trim();
-  const draft = session.draft || parseVoiceTranscript(transcript, {
-    members: state.members,
-    currentUserId: state.user?.id
-  });
+  let extractedExpenses = null;
+  let isAi = false;
 
-  const voiceMessage = [
-    `🎙 "${transcript}"`,
-    !draft.amount ? tr("voiceMissingAmount") : "",
-    draft.needsPayer ? tr("voicePayerUnknown") : ""
-  ].filter(Boolean).join(" — ");
+  // 1. Try secure AI expense parsing via Supabase Edge Function
+  try {
+    const { data: { session: authSession } } = await state.client.auth.getSession();
+    if (authSession?.access_token) {
+      const functionUrl = `${state.client.supabaseUrl}/functions/v1/parse-expense-ai`;
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authSession.access_token}`
+        },
+        body: JSON.stringify({
+          transcript,
+          household_id: state.room?.id,
+          members: state.members,
+          aliases: state.memberAliases || [],
+          customCategories: state.customCategories || [],
+          language: session?.language || localStorage.getItem("hearth_voice_language") || "en"
+        }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (response.ok) {
+        const payload = await response.json();
+        if (Array.isArray(payload.expenses) && payload.expenses.length > 0) {
+          extractedExpenses = payload.expenses;
+          isAi = true;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("AI parsing call failed or timed out, using local parser fallback:", err);
+  }
+
+  // 2. Fallback to local enhanced parser
+  if (!extractedExpenses || extractedExpenses.length === 0) {
+    const localDraft = parseVoiceTranscript(transcript, {
+      members: state.members,
+      memberAliases: state.memberAliases || [],
+      currentUserId: state.user?.id
+    });
+    extractedExpenses = localDraft.expenses || [];
+    if (extractedExpenses.length === 0 && (localDraft.amount || localDraft.description)) {
+      extractedExpenses = [localDraft];
+    }
+    isAi = false;
+  }
 
   disposeVoiceSession(session);
   closeModal();
 
-  expenseForm({
-    amount: draft.amount || "",
-    category: draft.category || "veg",
-    description: draft.description || "",
-    occurred: draft.occurred || today(),
-    paid_by: draft.paid_by || state.user?.id,
-    funding: draft.funding || "shared",
-    notes: draft.notes || "",
-    voiceMessage
-  });
+  if (!extractedExpenses || extractedExpenses.length === 0) {
+    flash("No expenses detected in speech. You can enter details manually.", "warn");
+    expenseForm();
+    return;
+  }
+
+  showVoiceReviewForm({ transcript, expenses: extractedExpenses, isAi });
+}
+
+function showVoiceReviewForm({ transcript, expenses = [], isAi = false }) {
+  let currentExpenses = expenses.map(e => ({ ...e }));
+  let currentTranscript = transcript;
+
+  function renderModal() {
+    const totalSum = currentExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const hasMultiple = currentExpenses.length > 1;
+
+    modal(`Review Voice Expense${hasMultiple ? ` (${currentExpenses.length})` : ""}`, `
+      <div class="voice-review-container">
+        <div class="between" style="margin-bottom:10px;">
+          <span class="badge ${isAi ? "badge-ai" : "badge-local"}">
+            ${isAi ? "\u2728 AI Understood" : "\u26A1 Offline Parser"}
+          </span>
+          <span class="small muted">${currentExpenses.length} expense(s) detected</span>
+        </div>
+
+        <div class="voice-review-transcript-box">
+          <label class="small muted" style="display:block; margin-bottom:4px;">Spoken Transcript</label>
+          <div style="display:flex; gap:8px;">
+            <input class="field sm" data-voice-transcript-input value="${esc(currentTranscript)}" style="flex:1;">
+            <button class="button soft sm" type="button" data-action="voice-reparse">Re-parse</button>
+          </div>
+        </div>
+
+        <form data-form="voice-review-save">
+          <div data-voice-items-slot>
+            ${currentExpenses.map((exp, idx) => {
+              const conf = exp.confidence || {};
+              const needs = exp.needs_clarification || [];
+              const amtHigh = conf.amount >= 0.8 && exp.amount > 0;
+              const descHigh = conf.description >= 0.8 && exp.description;
+              const catHigh = conf.category >= 0.8 && exp.category && exp.category !== "oth";
+              const payerUnclear = needs.includes("paid_by") || !exp.paid_by;
+              return `
+                <div class="voice-review-card" data-idx="${idx}">
+                  <div class="voice-review-card-header">
+                    <span>Item #${idx + 1}</span>
+                    ${hasMultiple ? `<button type="button" class="button soft sm" data-action="remove-voice-item" data-idx="${idx}" style="padding:2px 8px; font-size:11px;">\u00d7 Remove</button>` : ""}
+                  </div>
+                  <div class="form-grid">
+                    <label class="field-label">Amount (\u20b9)
+                      ${amtHigh ? `<span class="conf-high">\u2713 Confirmed</span>` : `<span class="conf-warn">\u26a0 Check amount</span>`}
+                      <input class="field" name="amount_${idx}" type="number" min="0.01" step="0.01" value="${exp.amount || ""}" required>
+                    </label>
+                    <label class="field-label">Date
+                      <input class="field" name="date_${idx}" type="date" value="${exp.date || today()}" max="${today()}" required>
+                    </label>
+                    <label class="field-label">Category
+                      ${catHigh ? `<span class="conf-high">\u2713</span>` : ""}
+                      <select class="field" name="category_${idx}" required>
+                        ${allCategoriesList().map(([cid]) => `<option value="${cid}" ${cid === (exp.category || "oth") ? "selected" : ""}>${esc(categoryName(cid))}</option>`).join("")}
+                      </select>
+                    </label>
+                    <label class="field-label">Paid By
+                      ${payerUnclear ? `<span class="conf-warn">\u26a0 Select payer</span>` : `<span class="conf-high">\u2713</span>`}
+                      ${memberSelect(exp.paid_by || state.user?.id, `paid_by_${idx}`)}
+                    </label>
+                  </div>
+                  <label class="field-label" style="margin-top:6px;">Description
+                    ${descHigh ? `<span class="conf-high">\u2713</span>` : `<span class="conf-warn">\u26a0 Verify description</span>`}
+                    <input class="field" name="description_${idx}" maxlength="120" value="${esc(exp.description || "")}" placeholder="e.g. Vegetables or Milk" required>
+                  </label>
+                  <div class="form-grid" style="margin-top:6px;">
+                    <label class="field-label">Paid From
+                      <select class="field" name="payment_source_${idx}">
+                        <option value="PERSONAL" ${(exp.payment_source||"PERSONAL")==="PERSONAL" ? "selected" : ""}>${tr("personal")}</option>
+                        <option value="SHARED_HOUSEHOLD" ${exp.payment_source==="SHARED_HOUSEHOLD" ? "selected" : ""}>${tr("shared")}</option>
+                      </select>
+                    </label>
+                    <label class="field-label">Notes (optional)
+                      <input class="field" name="notes_${idx}" maxlength="200" value="${esc(exp.notes || "")}">
+                    </label>
+                  </div>
+                </div>`;
+            }).join("")}
+          </div>
+          ${hasMultiple ? `<div class="between" style="margin:12px 0 4px; font-weight:600;">Total: \u20b9${totalSum.toFixed(2)}</div>` : ""}
+          <div class="row" style="margin-top:14px; gap:8px; flex-wrap:wrap;">
+            <button class="button primary" type="submit" style="flex:1;">Save ${hasMultiple ? `${currentExpenses.length} Expenses` : "Expense"}</button>
+            <button class="button" type="button" data-action="close">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `);
+
+    // Wire re-parse and remove buttons
+    const container = modalRoot.querySelector(".voice-review-container");
+    if (!container) return;
+    container.addEventListener("click", async e => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      if (btn.dataset.action === "voice-reparse") {
+        const newT = container.querySelector("[data-voice-transcript-input]")?.value?.trim();
+        if (!newT) return;
+        currentTranscript = newT;
+        btn.textContent = "Parsing\u2026"; btn.disabled = true;
+        let reparsed = null; let reparsedAi = false;
+        try {
+          const { data: { session: authSession } } = await state.client.auth.getSession();
+          if (authSession?.access_token) {
+            const r = await fetch(`${state.client.supabaseUrl}/functions/v1/parse-expense-ai`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${authSession.access_token}` },
+              body: JSON.stringify({ transcript: newT, household_id: state.room?.id, members: state.members, aliases: state.memberAliases || [], customCategories: state.customCategories || [], language: localStorage.getItem("hearth_voice_language") || "en" }),
+              signal: AbortSignal.timeout(10000)
+            });
+            if (r.ok) { const p = await r.json(); if (Array.isArray(p.expenses) && p.expenses.length) { reparsed = p.expenses; reparsedAi = true; } }
+          }
+        } catch {}
+        if (!reparsed) {
+          const local = parseVoiceTranscript(newT, { members: state.members, memberAliases: state.memberAliases || [], currentUserId: state.user?.id });
+          reparsed = local.expenses?.length ? local.expenses : (local.amount ? [local] : []);
+        }
+        if (reparsed?.length) { isAi = reparsedAi; currentExpenses = reparsed.map(e => ({ ...e })); }
+        renderModal();
+      } else if (btn.dataset.action === "remove-voice-item") {
+        const idx = Number(btn.dataset.idx);
+        currentExpenses.splice(idx, 1);
+        if (!currentExpenses.length) { closeModal(); return; }
+        renderModal();
+      }
+    });
+
+    // Handle form submit
+    const form = container.querySelector("[data-form='voice-review-save']");
+    if (!form) return;
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const submitBtn = form.querySelector("button[type=submit]");
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Saving\u2026"; }
+      try {
+        const fv = (n) => form.elements[n]?.value ?? "";
+        const rows = currentExpenses.map((_, idx) => {
+          const amount = parseFloat(fv(`amount_${idx}`));
+          if (!amount || amount <= 0) throw new Error(`Item ${idx + 1}: Invalid amount.`);
+          return {
+            household_id: state.room.id,
+            amount,
+            category: fv(`category_${idx}`) || "oth",
+            description: fv(`description_${idx}`) || "Expense",
+            occurred_on: fv(`date_${idx}`) || today(),
+            paid_by: fv(`paid_by_${idx}`) || state.user?.id,
+            payment_source: fv(`payment_source_${idx}`) || "PERSONAL",
+            funding: fv(`payment_source_${idx}`) === "SHARED_HOUSEHOLD" ? "shared" : "personal",
+            notes: fv(`notes_${idx}`) || null
+          };
+        });
+        const { error } = await state.client.from("expenses").insert(rows);
+        if (error) throw error;
+        closeModal();
+        await refreshRoom();
+        flash(rows.length === 1 ? "Expense saved from voice." : `${rows.length} expenses saved from voice.`);
+      } catch (err) {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = `Save${currentExpenses.length > 1 ? ` ${currentExpenses.length} Expenses` : " Expense"}`; }
+        showError(err);
+      }
+    });
+  }
+
+  renderModal();
 }
 
 function disposeVoiceSession(session) {
@@ -2588,7 +2896,7 @@ async function transcribeVoice(session) {
         members: state.members,
         currentUserId: state.user.id
       });
-      applyVoiceResult(session);
+      applyVoiceResult(session).catch(showError);
     } else {
       session.status = "error";
       session.error = tr(transcriptionFailureKey(request.status, payload.code));
@@ -3111,6 +3419,23 @@ async function handleForm(event) {
       break;
     }
 
+    case "add-voice-alias": {
+      const aliasText = value("alias")?.trim().toLowerCase();
+      const memberId = value("alias_member");
+      if (!aliasText) { flash(tr("voiceNicknameEmpty"), "warn"); break; }
+      if (!memberId) { flash("Select a household member.", "warn"); break; }
+      const { error } = await state.client.from("household_member_aliases").insert({
+        household_id: state.room.id,
+        user_id: memberId,
+        alias: aliasText,
+        created_by: state.user.id
+      });
+      if (error) throw error;
+      await refreshRoom();
+      flash(tr("voiceNicknameAdded"));
+      break;
+    }
+
     case "profile": {
       const { error } = await state.client.from("user_profiles").upsert({
         user_id: state.user.id,
@@ -3120,6 +3445,8 @@ async function handleForm(event) {
       });
       if (error) throw error;
       state.profile = { ...state.profile, display_name: value("display_name"), language: value("language") };
+      const vl = value("voice_language");
+      if (vl) localStorage.setItem("hearth_voice_language", vl);
       await refreshRoom();
       flash("Preferences saved.");
       break;
@@ -3232,6 +3559,25 @@ async function handleAction(button) {
       }
       break;
 
+    case "fill-alias": {
+      const aliasInput = document.querySelector('form[data-form="add-voice-alias"] input[name="alias"]');
+      if (aliasInput) {
+        aliasInput.value = button.dataset.value;
+        aliasInput.focus();
+      }
+      break;
+    }
+
+    case "delete-voice-alias": {
+      const aliasId = id;
+      if (!aliasId) break;
+      const { error } = await state.client.from("household_member_aliases").delete().eq("id", aliasId);
+      if (error) throw error;
+      await refreshRoom();
+      flash(tr("voiceNicknameDeleted"));
+      break;
+    }
+
     case "expense": expenseForm(); break;
     case "close": case "dismiss": closeModal(); break;
     case "voice": openVoiceEntry(); break;
@@ -3242,7 +3588,7 @@ async function handleAction(button) {
     case "voice-done":
       if (state.voice) {
         if (state.voice.status === "listening" || state.voice.status === "recording") stopVoice();
-        else applyVoiceResult(state.voice);
+        else applyVoiceResult(state.voice).catch(showError);
       }
       break;
     case "voice-again":
@@ -3865,6 +4211,13 @@ document.addEventListener("change", async event => {
   } else if (target.matches("[data-voice-language]")) {
     if (state.voice) {
       state.voice.language = target.value;
+      localStorage.setItem("hearth_voice_language", target.value);
+      const hintEl = modalRoot.querySelector("[data-voice-hint]");
+      if (hintEl) {
+        hintEl.innerHTML = target.value === "ta"
+          ? '💡 சொல்லுங்கள்: <em>"பால் 60 ரூபாய்"</em>, <em>"அப்பா 500 மளிகை வாங்கினார்"</em>, <em>"காய்கறி 150 பழங்கள் 100"</em>'
+          : '💡 Try: <em>"Milk 60 rupees"</em>, <em>"Dad paid 500 for groceries"</em>, <em>"Vegetables 150 and fruits 100"</em>';
+      }
       if (state.voice.status === "listening" || state.voice.status === "recording") {
         stopVoice();
         setTimeout(() => startVoice(), 150);

@@ -866,6 +866,59 @@ textarea.field {
 .grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .audit-json { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border-radius: var(--radius-md); background: var(--bg); font-family: monospace; font-size: 12px; }
 
+/* VOICE REVIEW UI */
+.voice-review-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 12px;
+  background: var(--bg);
+  position: relative;
+}
+.voice-review-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.voice-review-transcript-box {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  margin-bottom: 14px;
+}
+.conf-high {
+  color: #10b981;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+.conf-warn {
+  color: #d97706;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+.badge-ai {
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+.badge-local {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
 /* MORE MENU LINKS */
 .more-menu { padding: 4px 16px; }
 .more-link {
@@ -981,4 +1034,44 @@ textarea.field {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+
+.voice-hint-box {
+  margin: 6px 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg, rgba(0, 0, 0, 0.04));
+  border: 1px dashed var(--line);
+  font-size: 13px;
+  text-align: left;
+  line-height: 1.4;
+}
+.voice-live-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.voice-quick-aliases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+.voice-quick-btn {
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+.voice-quick-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }

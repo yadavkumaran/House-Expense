@@ -16,35 +16,35 @@ test("version.js provides the canonical app version", () => {
 
 test("latest release resolves a newer APK with a supported GitHub release URL", () => {
   const update = getApkReleaseUpdate({
-    tag_name: "v1.6.0",
+    tag_name: "v1.7.0",
     draft: false,
     prerelease: false,
-    html_url: "https://github.com/yadavkumaran/House-Expense/releases/tag/v1.6.0",
+    html_url: "https://github.com/yadavkumaran/House-Expense/releases/tag/v1.7.0",
     assets: [{
       name: "app-debug.apk",
-      browser_download_url: "https://github.com/yadavkumaran/House-Expense/releases/download/v1.6.0/app-debug.apk"
+      browser_download_url: "https://github.com/yadavkumaran/House-Expense/releases/download/v1.7.0/app-debug.apk"
     }]
   });
 
   assert.equal(update.hasUpdate, true);
-  assert.equal(update.version, "1.6.0");
+  assert.equal(update.version, "1.7.0");
   assert.equal(update.downloadUrl.endsWith("/app-debug.apk"), true);
 });
 
 test("supports both Hearth and House-Expense repository release download URLs", () => {
   const update = getApkReleaseUpdate({
-    tag_name: "v1.6.0",
+    tag_name: "v1.7.0",
     draft: false,
     prerelease: false,
-    html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.6.0",
+    html_url: "https://github.com/yadavkumaran/Hearth/releases/tag/v1.7.0",
     assets: [{
       name: "app-debug.apk",
-      browser_download_url: "https://github.com/yadavkumaran/Hearth/releases/download/v1.6.0/app-debug.apk"
+      browser_download_url: "https://github.com/yadavkumaran/Hearth/releases/download/v1.7.0/app-debug.apk"
     }]
   });
 
   assert.equal(update.hasUpdate, true);
-  assert.equal(update.version, "1.6.0");
+  assert.equal(update.version, "1.7.0");
 });
 
 test("latest version is not offered as an update", () => {
@@ -70,10 +70,10 @@ test("invalid releases and APK URLs fail explicitly", () => {
   );
   assert.throws(
     () => getApkReleaseUpdate({
-      tag_name: "v1.6.0",
+      tag_name: "v1.7.0",
       draft: false,
       prerelease: false,
-      html_url: "https://github.com/yadavkumaran/House-Expense/releases/tag/v1.6.0",
+      html_url: "https://github.com/yadavkumaran/House-Expense/releases/tag/v1.7.0",
       assets: [{ name: "app-debug.apk", browser_download_url: "https://example.com/app-debug.apk" }]
     }),
     /does not contain one valid/

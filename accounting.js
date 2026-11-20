@@ -50,9 +50,9 @@ export function calculatePersonalReimbursements({ members = [], expenses = [], s
   return members
     .filter(member => member.user_id !== currentUserId)
     .map(member => {
-      // Total personal-pocket expenses paid by this other member
+      // Total personal-pocket expenses paid by this other member (payment_source === 'PERSONAL' or legacy funding === 'personal')
       const paidPaise = activeExpenses
-        .filter(e => e.paid_by === member.user_id && e.funding === "personal")
+        .filter(e => e.paid_by === member.user_id && (e.payment_source === "PERSONAL" || e.funding === "personal"))
         .reduce((sum, e) => sum + toMinorUnits(e.amount), 0);
 
       // Total reimbursements paid by current user to this member

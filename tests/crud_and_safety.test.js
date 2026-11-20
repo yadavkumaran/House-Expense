@@ -177,3 +177,51 @@ test("transaction search and multi-facet filtering", () => {
   assert.equal(sorted[0].id, "e2");
   assert.equal(sorted[3].id, "e1");
 });
+
+test("client-supplied family-member ID must validate against household membership", () => {
+  const householdMembers = [
+    { user_id: "u-mom", name: "Mom" },
+    { user_id: "u-dad", name: "Dad" },
+    { user_id: "u-me", name: "Yadav" }
+  ];
+
+  const validatePayer = (payerId) => {
+    if (!payerId || !householdMembers.some(m => m.user_id === payerId)) {
+      throw new Error("Selected family member is not a member of this household.");
+    }
+    return true;
+  };
+
+  // Valid household members pass
+  assert.equal(validatePayer("u-mom"), true);
+  assert.equal(validatePayer("u-dad"), true);
+  assert.equal(validatePayer("u-me"), true);
+
+  // Untrusted external user_id fails
+  assert.throws(() => validatePayer("rogue-user-999"), /Selected family member is not a member of this household/);
+  assert.throws(() => validatePayer(""), /Selected family member is not a member of this household/);
+  assert.throws(() => validatePayer(null), /Selected family member is not a member of this household/);
+});
+
+test("filters expenses by family member and payment source (PERSONAL & SHARED_HOUSEHOLD)", () => {
+  const expenses = [
+    { id: "e1", description: "Milk", paid_by: "u-dad", payment_source: "SHARED_HOUSEHOLD", funding: "shared", amount: 60 },
+    { id: "e2", description: "Vegetables", paid_by: "u-mom", payment_source: "PERSONAL", funding: "personal", amount: 150 },
+    { id: "e3", description: "Petrol", paid_by: "u-me", payment_source: "PERSONAL", funding: "personal", amount: 120 },
+    { id: "e4", description: "Old Electric Bill", paid_by: "u-dad", funding: "shared", amount: 800 } // Legacy record
+  ];
+
+  // Filter by family member (Dad)
+  const dadExpenses = expenses.filter(e => e.paid_by === "u-dad");
+  assert.equal(dadExpenses.length, 2);
+
+  // Filter by payment source: PERSONAL
+  const personal = expenses.filter(e => e.payment_source === "PERSONAL" || e.funding === "personal");
+  assert.equal(personal.length, 2);
+  assert.deepEqual(personal.map(e => e.id), ["e2", "e3"]);
+
+  // Filter by payment source: SHARED_HOUSEHOLD (including legacy funding: shared)
+  const shared = expenses.filter(e => e.payment_source === "SHARED_HOUSEHOLD" || e.funding === "shared");
+  assert.equal(shared.length, 2);
+  assert.deepEqual(shared.map(e => e.id), ["e1", "e4"]);
+});

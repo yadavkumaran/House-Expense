@@ -99,7 +99,7 @@ export function createTranscriptionHandler({ env, createClient, fetchImpl = fetc
     providerForm.append("language", language);
     providerForm.append(
       "prompt",
-      "Transcribe the speaker verbatim. The conversation may describe household purchases, amounts in Indian rupees, groceries, electricity, milk, vegetables, or petrol."
+      "Transcribe the speaker verbatim. Speech may contain English, Tamil (தமிழ்), or Tamil-English (Tanglish) describing household expenses, amounts in Indian rupees (ரூபாய், ரூபாய்க்கு, rs), groceries, milk, vegetables, petrol, electricity, appa, amma, veetu panam, or sontha panam."
     );
 
     let providerResponse;

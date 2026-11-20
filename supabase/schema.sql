@@ -30,6 +30,7 @@ create table if not exists public.expenses (
   description text not null,
   occurred_on date not null default current_date,
   paid_by uuid not null references auth.users(id),
+  payment_source text not null default 'PERSONAL' check (payment_source in ('PERSONAL', 'SHARED_HOUSEHOLD')),
   funding text not null check (funding in ('personal', 'shared')),
   source text not null default 'manual' check (source in ('manual','receipt','recurring','grocery')),
   receipt_fingerprint text,
@@ -632,6 +633,52 @@ $$;
 
 grant execute on function public.delete_user_account() to authenticated;
 
+-- Household Member Nicknames and Aliases for Voice Input Accuracy
+create table if not exists public.household_member_aliases (
+  id uuid primary key default gen_random_uuid(),
+  household_id uuid not null references public.households(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  alias text not null check (length(trim(alias)) between 1 and 60),
+  created_at timestamptz not null default now(),
+  unique (household_id, alias)
+);
+
+alter table public.household_member_aliases enable row level security;
+
+create policy "members read household aliases"
+  on public.household_member_aliases for select
+  using (exists (
+    select 1 from public.household_members m
+    where m.household_id = household_member_aliases.household_id
+      and m.user_id = auth.uid()
+  ));
+
+create policy "members insert household aliases"
+  on public.household_member_aliases for insert
+  with check (
+    exists (
+      select 1 from public.household_members m
+      where m.household_id = household_member_aliases.household_id
+        and m.user_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.household_members m2
+      where m2.household_id = household_member_aliases.household_id
+        and m2.user_id = household_member_aliases.user_id
+    )
+  );
+
+create policy "members delete household aliases"
+  on public.household_member_aliases for delete
+  using (exists (
+    select 1 from public.household_members m
+    where m.household_id = household_member_aliases.household_id
+      and m.user_id = auth.uid()
+  ));
+
+create index if not exists household_member_aliases_lookup_idx
+  on public.household_member_aliases (household_id, alias);
+
 do $$
 declare realtime_table text;
 begin
@@ -639,7 +686,7 @@ begin
     'expenses', 'category_budgets', 'recurring_bills', 'shopping_items',
     'savings_goals', 'savings_contributions', 'settlements', 'activity_events',
     'household_members', 'households', 'rooms', 'custom_categories',
-    'payment_methods', 'spending_alerts'
+    'payment_methods', 'spending_alerts', 'household_member_aliases'
   ] loop
     if not exists (
       select 1 from pg_publication_tables

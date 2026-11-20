@@ -223,3 +223,173 @@ test("handles mixed Tamil-English voice expressions", () => {
   assert.equal(mixedVeg.amount, "150");
   assert.equal(mixedVeg.category, "veg");
 });
+
+test("parses English payer and payment source dictation examples", () => {
+  const members = [
+    { user_id: "me", name: "Yadav" },
+    { user_id: "dad-id", name: "Dad" },
+    { user_id: "mom-id", name: "Mom" }
+  ];
+
+  // 1. "I bought milk for 60 rupees using my personal money."
+  const e1 = parseVoiceTranscript("I bought milk for 60 rupees using my personal money.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(e1.amount, "60");
+  assert.equal(e1.category, "milk");
+  assert.equal(e1.paid_by, "me");
+  assert.equal(e1.payment_source, "PERSONAL");
+  assert.equal(e1.funding, "personal");
+  assert.match(e1.description, /milk/i);
+
+  // 2. "Dad paid 500 rupees for groceries from household money."
+  const e2 = parseVoiceTranscript("Dad paid 500 rupees for groceries from household money.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(e2.amount, "500");
+  assert.equal(e2.category, "groc");
+  assert.equal(e2.paid_by, "dad-id");
+  assert.equal(e2.payment_source, "SHARED_HOUSEHOLD");
+  assert.equal(e2.funding, "shared");
+  assert.match(e2.description, /groceries/i);
+
+  // 3. "Mom bought vegetables for 150 rupees."
+  const e3 = parseVoiceTranscript("Mom bought vegetables for 150 rupees.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(e3.amount, "150");
+  assert.equal(e3.category, "veg");
+  assert.equal(e3.paid_by, "mom-id");
+  assert.equal(e3.payment_source, "");
+  assert.match(e3.description, /vegetables/i);
+
+  // 4. "I paid 200 rupees for electricity from shared funds."
+  const e4 = parseVoiceTranscript("I paid 200 rupees for electricity from shared funds.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(e4.amount, "200");
+  assert.equal(e4.category, "bill");
+  assert.equal(e4.paid_by, "me");
+  assert.equal(e4.payment_source, "SHARED_HOUSEHOLD");
+  assert.equal(e4.funding, "shared");
+  assert.match(e4.description, /electricity/i);
+});
+
+test("parses Tamil payer and payment source dictation examples", () => {
+  const members = [
+    { user_id: "me", name: "யாதவ்" },
+    { user_id: "dad-id", name: "அப்பா" },
+    { user_id: "mom-id", name: "அம்மா" }
+  ];
+
+  // 1. "நான் என்னுடைய சொந்த பணத்தில் 60 ரூபாய்க்கு பால் வாங்கினேன்."
+  const t1 = parseVoiceTranscript("நான் என்னுடைய சொந்த பணத்தில் 60 ரூபாய்க்கு பால் வாங்கினேன்.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(t1.amount, "60");
+  assert.equal(t1.category, "milk");
+  assert.equal(t1.paid_by, "me");
+  assert.equal(t1.payment_source, "PERSONAL");
+  assert.equal(t1.funding, "personal");
+  assert.match(t1.description, /பால்/);
+
+  // 2. "அப்பா வீட்டுப் பணத்திலிருந்து 500 ரூபாய்க்கு மளிகை பொருட்கள் வாங்கினார்."
+  const t2 = parseVoiceTranscript("அப்பா வீட்டுப் பணத்திலிருந்து 500 ரூபாய்க்கு மளிகை பொருட்கள் வாங்கினார்.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(t2.amount, "500");
+  assert.equal(t2.category, "groc");
+  assert.equal(t2.paid_by, "dad-id");
+  assert.equal(t2.payment_source, "SHARED_HOUSEHOLD");
+  assert.equal(t2.funding, "shared");
+  assert.match(t2.description, /மளிகை/);
+
+  // 3. "அம்மா 150 ரூபாய்க்கு காய்கறி வாங்கினாங்க."
+  const t3 = parseVoiceTranscript("அம்மா 150 ரூபாய்க்கு காய்கறி வாங்கினாங்க.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(t3.amount, "150");
+  assert.equal(t3.category, "veg");
+  assert.equal(t3.paid_by, "mom-id");
+  assert.equal(t3.payment_source, "");
+  assert.match(t3.description, /காய்கறி/);
+
+  // 4. "நான் பொதுவான வீட்டுப் பணத்திலிருந்து 200 ரூபாய் மின்சார கட்டணம் செலுத்தினேன்."
+  const t4 = parseVoiceTranscript("நான் பொதுவான வீட்டுப் பணத்திலிருந்து 200 ரூபாய் மின்சார கட்டணம் செலுத்தினேன்.", {
+    members, currentUserId: "me", now: fixedDate
+  });
+  assert.equal(t4.amount, "200");
+  assert.equal(t4.category, "bill");
+  assert.equal(t4.paid_by, "me");
+  assert.equal(t4.payment_source, "SHARED_HOUSEHOLD");
+  assert.equal(t4.funding, "shared");
+  assert.match(t4.description, /மின்சார/);
+});
+
+test("maps English and Tamil family member aliases to household members", () => {
+  const membersEn = [
+    { user_id: "me", name: "Yadav" },
+    { user_id: "dad-id", name: "Dad Kumar" },
+    { user_id: "mom-id", name: "Mom Vidhya" }
+  ];
+
+  const tDad = parseVoiceTranscript("அப்பா 500 ரூபாய் காய்கறிக்கு கொடுத்தார்", { members: membersEn, currentUserId: "me", now: fixedDate });
+  assert.equal(tDad.paid_by, "dad-id");
+
+  const tMom = parseVoiceTranscript("அம்மா 300 ரூபாய் பால்", { members: membersEn, currentUserId: "me", now: fixedDate });
+  assert.equal(tMom.paid_by, "mom-id");
+});
+
+test("handles ambiguous family member references without guessing", () => {
+  const members = [
+    { user_id: "u1", name: "Yadav" }
+  ];
+
+  const d1 = parseVoiceTranscript("Dad paid 500 for milk", { members, currentUserId: "u1", now: fixedDate });
+  assert.equal(d1.paid_by, "");
+  assert.equal(d1.needsPayer, true);
+
+  const d2 = parseVoiceTranscript("A friend paid 300 for dinner", { members, currentUserId: "u1", now: fixedDate });
+  assert.equal(d2.paid_by, "");
+  assert.equal(d2.needsPayer, true);
+});
+
+
+test("maps custom household member aliases (e.g. Dad -> real name Karthik)", () => {
+  const members = [
+    { user_id: "me", name: "Yadav" },
+    { user_id: "user-karthik-123", name: "Karthik" },
+    { user_id: "user-priya-456", name: "Priya" }
+  ];
+  const memberAliases = [
+    { id: "a1", alias: "Dad", user_id: "user-karthik-123" },
+    { id: "a2", alias: "Appa", user_id: "user-karthik-123" },
+    { id: "a3", alias: "Mom", user_id: "user-priya-456" },
+    { id: "a4", alias: "அம்மா", user_id: "user-priya-456" }
+  ];
+
+  // 1. English with Dad
+  const d1 = parseVoiceTranscript("Dad paid 500 for groceries", { members, memberAliases, currentUserId: "me" });
+  assert.equal(d1.amount, "500");
+  assert.equal(d1.category, "groc");
+  assert.equal(d1.paid_by, "user-karthik-123");
+  assert.equal(d1.needsPayer, false);
+
+  // 2. English with Appa
+  const d2 = parseVoiceTranscript("Appa bought milk for 60 rupees", { members, memberAliases, currentUserId: "me" });
+  assert.equal(d2.amount, "60");
+  assert.equal(d2.category, "milk");
+  assert.equal(d2.paid_by, "user-karthik-123");
+
+  // 3. Mom alias
+  const d3 = parseVoiceTranscript("Mom spent 250 for vegetables", { members, memberAliases, currentUserId: "me" });
+  assert.equal(d3.amount, "250");
+  assert.equal(d3.category, "veg");
+  assert.equal(d3.paid_by, "user-priya-456");
+
+  // 4. Tamil with அம்மா alias
+  const d4 = parseVoiceTranscript("அம்மா 300 ரூபாய் காய்கறி வாங்கினார்", { members, memberAliases, currentUserId: "me" });
+  assert.equal(d4.amount, "300");
+  assert.equal(d4.category, "veg");
+  assert.equal(d4.paid_by, "user-priya-456");
+});
