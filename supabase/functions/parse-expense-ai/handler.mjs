@@ -18,18 +18,17 @@ function respond(status, body) {
   });
 }
 
-export function buildSystemPrompt({ members = [], aliases = [], currentUserId = "", today = new Date().toISOString().slice(0, 10), customCategories = [], language = "en" }) {
+export function buildSystemPrompt({ members = [], currentUserId = "", today = new Date().toISOString().slice(0, 10), customCategories = [], language = "en" }) {
   const categoriesList = [
     ...BUILTIN_CATEGORIES,
     ...customCategories.map(c => typeof c === "string" ? c : c.key)
   ];
 
   const membersDesc = members.map(m => `- Name: "${m.name || "Unknown"}", user_id: "${m.user_id || m.id}"`).join("\n") || "None";
-  const aliasesDesc = aliases.map(a => `- Alias: "${a.alias}", maps to user_id: "${a.user_id}"`).join("\n") || "None";
 
   return `You are Hearth AI, an expert financial parsing engine for Indian household expense tracking.
 Your task is to analyze user speech transcripts and convert them into structured expense records in valid JSON.
-Today's date is ${today}.
+Today's local date is ${today}.
 Primary Dictation Language: ${language === 'ta' ? 'Tamil (தமிழ்)' : 'English (India) with Tanglish / Tamil code-switching'}.
 
 Supported Categories:
@@ -39,33 +38,35 @@ ${categoriesList.join(", ")}
 Household Members:
 ${membersDesc}
 
-Known Household Aliases/Nicknames:
-${aliasesDesc}
-
 Current User ID: "${currentUserId}"
 
 Extraction Rules:
 1. LANGUAGE: Understand English, Tamil (தமிழ்), Indian English, and Tamil-English code-switching (Tanglish, e.g. "Naan milk 60 rupees ku vanginen", "Appa veetu panathula 500 groceries vanginar").
 2. NUMBERS: Support digits (50, 60), currency words (rupees, rs, inr, ரூபாய், ரூபாய்க்கு, ruba, roobai), Tamil words (ஐம்பது, அறுபது, நூறு, ஆயிரம்), and Tanglish numbers (ambadhu=50, aruvadhu=60, nooru=100, ayiram=1000, rendu=2, moonu=3, etc.).
 3. MULTIPLE EXPENSES: If the sentence lists multiple purchases (e.g. "Today I bought milk for 60, vegetables for 150 and fruits for 100"), output each as a SEPARATE object in the "expenses" array! Do not combine them!
-4. SPOKEN CORRECTIONS: If the speaker corrects themselves (e.g. "Vegetables 150 wait no 180"), extract the corrected final value (180).
-5. AMBIGUOUS / INCOMPLETE: If an expense lacks amount or description (e.g. "I spent 200"), do NOT invent details or categories. Return empty description or null, and list the missing field in "needs_clarification".
-6. UNRELATED CONVERSATION: If the speech is greeting, casual talk, or not an expense ("Hello good morning"), return {"expenses": []}.
-7. PAYER (paid_by):
+4. DESCRIPTION CLEANING: The description MUST contain ONLY the item or service purchased (e.g., "Milk", "Vegetables", "Groceries"). Do NOT include payment source words ("personal", "shared household", "from personal money", "sontha panam", "veetu panam") in the description! For example: "Milk personal 100 rupees" -> description: "Milk", payment_source: "PERSONAL". (Exception: "personal care" is a legitimate item name, do not alter "Personal care products").
+5. SPOKEN CORRECTIONS: If the speaker corrects themselves (e.g. "Vegetables 150 wait no 180"), extract the corrected final value (180).
+6. AMBIGUOUS / INCOMPLETE: If an expense lacks amount or description (e.g. "I spent 200"), do NOT invent details or categories. Return empty description or null, and list the missing field in "needs_clarification".
+7. UNRELATED CONVERSATION: If the speech is greeting, casual talk, or not an expense ("Hello good morning"), return {"expenses": []}.
+8. PAYER (paid_by):
    - "I / my / naan / en / enakku / mine" -> map to Current User ID "${currentUserId}".
-   - "Dad / father / appa / அப்பா / தந்தை" or Mom, brother, sister -> match to household members or aliases list.
-   - If an unfamiliar name or relation is mentioned with no match in the household list, leave paid_by: null and add "paid_by" to "needs_clarification".
-8. PAYMENT SOURCE (payment_source):
+   - If an actual registered household member's name is mentioned, map to their user_id.
+   - Do NOT guess a household member based on an ambiguous role (Dad, Mom, Appa, Amma, etc.). If a role is mentioned without an exact registered member name match, leave paid_by: null and add "paid_by" to "needs_clarification".
+9. PAYMENT SOURCE (payment_source):
    - "PERSONAL": personal pocket money, sontha panam, sontha kaasu, my own money.
    - "SHARED_HOUSEHOLD": household money, common fund, veetu panam, veetu kaasu, shared funds.
    - If not mentioned or ambiguous, default to null or "PERSONAL".
-9. DATES: Calculate relative dates from today (${today}). E.g. "yesterday" or "நேற்று" -> yesterday's YYYY-MM-DD.
+10. DATES: Calculate relative dates from today's local date (${today}):
+   - "today" / "இன்று" / "inniku" -> "${today}"
+   - "yesterday" / "நேற்று" / "nethu" -> 1 day before ${today}
+   - "day before yesterday" / "முந்தாநேற்று" / "munthanethu" -> 2 days before ${today}
+   - "tomorrow" / "நாளை" / "naalaiku" -> 1 day after ${today}
 
 Output MUST be a JSON object with this exact schema:
 {
   "expenses": [
     {
-      "description": "Clean concise item title",
+      "description": "Clean concise item title (e.g. Milk)",
       "amount": 150.00,
       "currency": "INR",
       "category": "veg",
@@ -151,19 +152,21 @@ export function createExpenseAiHandler({ env, createClient, fetchImpl = fetch })
     }
 
     const members = Array.isArray(body.members) ? body.members : [];
-    const aliases = Array.isArray(body.aliases) ? body.aliases : [];
     const customCategories = Array.isArray(body.customCategories) ? body.customCategories : [];
     const currentUserId = user.id;
 
     const chatModel = env("GROQ_CHAT_MODEL") || "llama-3.3-70b-versatile";
     const language = body.language || "en";
+    const clientToday = (typeof body.today === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.today))
+      ? body.today
+      : new Date().toISOString().slice(0, 10);
+
     const systemPrompt = buildSystemPrompt({
       members,
-      aliases,
       currentUserId,
       customCategories,
       language,
-      today: new Date().toISOString().slice(0, 10)
+      today: clientToday
     });
 
     let providerResponse;

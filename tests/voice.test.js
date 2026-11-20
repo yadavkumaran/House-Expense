@@ -326,70 +326,90 @@ test("parses Tamil payer and payment source dictation examples", () => {
   assert.match(t4.description, /மின்சார/);
 });
 
-test("maps English and Tamil family member aliases to household members", () => {
-  const membersEn = [
+test("matches registered member names and tokens without alias guessing", () => {
+  const members = [
     { user_id: "me", name: "Yadav" },
     { user_id: "dad-id", name: "Dad Kumar" },
-    { user_id: "mom-id", name: "Mom Vidhya" }
+    { user_id: "mom-id", name: "அம்மா" }
   ];
 
-  const tDad = parseVoiceTranscript("அப்பா 500 ரூபாய் காய்கறிக்கு கொடுத்தார்", { members: membersEn, currentUserId: "me", now: fixedDate });
+  const tDad = parseVoiceTranscript("Dad paid 500 rupees for groceries", { members, currentUserId: "me", now: fixedDate });
   assert.equal(tDad.paid_by, "dad-id");
+  assert.equal(tDad.needsPayer, false);
 
-  const tMom = parseVoiceTranscript("அம்மா 300 ரூபாய் பால்", { members: membersEn, currentUserId: "me", now: fixedDate });
+  const tMom = parseVoiceTranscript("அம்மா 300 ரூபாய் பால்", { members, currentUserId: "me", now: fixedDate });
   assert.equal(tMom.paid_by, "mom-id");
+  assert.equal(tMom.needsPayer, false);
 });
 
 test("handles ambiguous family member references without guessing", () => {
   const members = [
-    { user_id: "u1", name: "Yadav" }
+    { user_id: "u1", name: "Yadav" },
+    { user_id: "u2", name: "Karthik" },
+    { user_id: "u3", name: "Priya" }
   ];
 
   const d1 = parseVoiceTranscript("Dad paid 500 for milk", { members, currentUserId: "u1", now: fixedDate });
   assert.equal(d1.paid_by, "");
   assert.equal(d1.needsPayer, true);
 
-  const d2 = parseVoiceTranscript("A friend paid 300 for dinner", { members, currentUserId: "u1", now: fixedDate });
+  const d2 = parseVoiceTranscript("Appa bought groceries for 400", { members, currentUserId: "u1", now: fixedDate });
   assert.equal(d2.paid_by, "");
   assert.equal(d2.needsPayer, true);
+
+  const d3 = parseVoiceTranscript("அம்மா 300 ரூபாய் காய்கறி வாங்கினார்", { members, currentUserId: "u1", now: fixedDate });
+  assert.equal(d3.paid_by, "");
+  assert.equal(d3.needsPayer, true);
 });
 
+test("strips payment source phrases from description while preserving genuine phrases", () => {
+  // 1. "Milk personal 100 rupees" -> "Milk"
+  const d1 = parseVoiceTranscript("Milk personal 100 rupees", { now: fixedDate });
+  assert.equal(d1.amount, "100");
+  assert.equal(d1.description, "Milk");
+  assert.equal(d1.payment_source, "PERSONAL");
 
-test("maps custom household member aliases (e.g. Dad -> real name Karthik)", () => {
-  const members = [
-    { user_id: "me", name: "Yadav" },
-    { user_id: "user-karthik-123", name: "Karthik" },
-    { user_id: "user-priya-456", name: "Priya" }
-  ];
-  const memberAliases = [
-    { id: "a1", alias: "Dad", user_id: "user-karthik-123" },
-    { id: "a2", alias: "Appa", user_id: "user-karthik-123" },
-    { id: "a3", alias: "Mom", user_id: "user-priya-456" },
-    { id: "a4", alias: "அம்மா", user_id: "user-priya-456" }
-  ];
+  // 2. "Personal care products 200 rupees" -> preserves "Personal care products"
+  const d2 = parseVoiceTranscript("Personal care products 200 rupees", { now: fixedDate });
+  assert.equal(d2.amount, "200");
+  assert.match(d2.description, /Personal care products/i);
 
-  // 1. English with Dad
-  const d1 = parseVoiceTranscript("Dad paid 500 for groceries", { members, memberAliases, currentUserId: "me" });
-  assert.equal(d1.amount, "500");
-  assert.equal(d1.category, "groc");
-  assert.equal(d1.paid_by, "user-karthik-123");
-  assert.equal(d1.needsPayer, false);
+  // 3. "Groceries shared household 500 rupees" -> "Groceries"
+  const d3 = parseVoiceTranscript("Groceries shared household 500 rupees", { now: fixedDate });
+  assert.equal(d3.amount, "500");
+  assert.equal(d3.description, "Groceries");
+  assert.equal(d3.payment_source, "SHARED_HOUSEHOLD");
 
-  // 2. English with Appa
-  const d2 = parseVoiceTranscript("Appa bought milk for 60 rupees", { members, memberAliases, currentUserId: "me" });
-  assert.equal(d2.amount, "60");
-  assert.equal(d2.category, "milk");
-  assert.equal(d2.paid_by, "user-karthik-123");
+  // 4. "Personal money la 100 ku milk vanginen" -> "Milk"
+  const d4 = parseVoiceTranscript("Personal money la 100 ku milk vanginen", { now: fixedDate });
+  assert.equal(d4.amount, "100");
+  assert.equal(d4.description, "Milk");
+  assert.equal(d4.payment_source, "PERSONAL");
+});
 
-  // 3. Mom alias
-  const d3 = parseVoiceTranscript("Mom spent 250 for vegetables", { members, memberAliases, currentUserId: "me" });
-  assert.equal(d3.amount, "250");
-  assert.equal(d3.category, "veg");
-  assert.equal(d3.paid_by, "user-priya-456");
+test("accurately parses relative dates in English, Tanglish, and Tamil", () => {
+  // Reference fixedDate is 2026-10-17
+  // 1. Yesterday -> 2026-10-16
+  const y1 = parseVoiceTranscript("Yesterday milk 60 rupees", { now: fixedDate });
+  assert.equal(y1.occurred, "2026-10-16");
 
-  // 4. Tamil with அம்மா alias
-  const d4 = parseVoiceTranscript("அம்மா 300 ரூபாய் காய்கறி வாங்கினார்", { members, memberAliases, currentUserId: "me" });
-  assert.equal(d4.amount, "300");
-  assert.equal(d4.category, "veg");
-  assert.equal(d4.paid_by, "user-priya-456");
+  // 2. Tamil நேற்று -> 2026-10-16
+  const y2 = parseVoiceTranscript("நேற்று காய்கறி 150 ரூபாய்", { now: fixedDate });
+  assert.equal(y2.occurred, "2026-10-16");
+
+  // 3. Tanglish nethu -> 2026-10-16
+  const y3 = parseVoiceTranscript("nethu petrol 200", { now: fixedDate });
+  assert.equal(y3.occurred, "2026-10-16");
+
+  // 4. Day before yesterday -> 2026-10-15
+  const dby = parseVoiceTranscript("day before yesterday groceries 500", { now: fixedDate });
+  assert.equal(dby.occurred, "2026-10-15");
+
+  // 5. Tanglish inniku -> 2026-10-17
+  const td = parseVoiceTranscript("inniku dinner 300", { now: fixedDate });
+  assert.equal(td.occurred, "2026-10-17");
+
+  // 6. Tomorrow -> 2026-10-18
+  const tm = parseVoiceTranscript("tomorrow movie tickets 250", { now: fixedDate });
+  assert.equal(tm.occurred, "2026-10-18");
 });

@@ -19,6 +19,29 @@ export function sanitizeConfidence(val, defaultScore = 0.5) {
   return Math.max(0, Math.min(1, Math.round(num * 100) / 100));
 }
 
+export function cleanDescriptionFromPaymentSource(text) {
+  if (!text || typeof text !== "string") return "";
+  let s = text.trim();
+  s = s.replace(/\b(?:from\s+|using\s+)?shared\s+household(?:\s+funds?|\s+money|\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?household\s+money(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?shared\s+funds?(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?common\s+(?:household\s+)?funds?(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?(?:my\s+)?personal\s+money(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?(?:my\s+)?personal\s+(?:account|funds?)(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?(?:my\s+)?(?:own\s+money|own\s+pocket|my\s+pocket)\b/gi, " ");
+  s = s.replace(/\bpersonal\b(?!\s*care\b)(?:\s+la)?/gi, " ");
+  s = s.replace(/\b(?:from\s+)?(?:veetu|veettu)\s+(?:panam|kaasu|panathula|kaasula|fund)\b/gi, " ");
+  s = s.replace(/\b(?:from\s+)?sontha\s+(?:panam|kaasu|panathula|kaasula|selavu)\b/gi, " ");
+  s = s.replace(/(?:என்\s*|என்னுடைய\s*)?சொந்தப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ");
+  s = s.replace(/(?:பொதுவான\s*|பொதுப்\s*|குடும்பப்\s*)?வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ");
+  s = s.replace(/சொந்த\s*காசு|வீட்டு\s*காசு/gu, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  s = s.replace(/^(?:for|from|using|on|in|to|ku|la|at|the|a|an)\s+/i, "").trim();
+  s = s.replace(/\s+(?:for|from|using|on|in|to|ku|la|at|the|a|an)$/i, "").trim();
+  if (s) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s;
+}
+
 export function validateAndSanitizeExpenses(rawExpenses, { members = [], allowedCategories = BUILTIN_CATEGORIES } = {}) {
   if (!Array.isArray(rawExpenses)) return [];
 
@@ -43,6 +66,9 @@ export function validateAndSanitizeExpenses(rawExpenses, { members = [], allowed
 
     // Description validation
     let description = typeof item.description === "string" ? item.description.trim() : "";
+    if (description) {
+      description = cleanDescriptionFromPaymentSource(description);
+    }
     if (description.length > 120) description = description.slice(0, 120);
     if (!description) {
       if (!needsClarification.includes("description")) needsClarification.push("description");

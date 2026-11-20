@@ -193,8 +193,10 @@ function amountFromTranscript(transcript) {
     const expenseVerbBefore = /(?:spent|paid|pay|add|record|bought(?:\s+[\p{L}\p{M}\s]+)?\s+for|cost|costs)$/i.test(before);
     const categoryOrNounBefore = CATEGORY_PATTERNS.some(([, pat]) => pat.test(before));
     const nounPhraseBefore = /[\p{L}\p{M}]{2,}$/u.test(before) && !/(?:at|in|on|the|a|an|of)$/i.test(before);
+    const dativeOrCurrencyAfter = /^(?:ku|kku|for|towards|rupees?|rs|inr|ruba|rubai|rooba|roobai|ரூபாய்|ரூபாய்க்கு)\b/i.test(after);
+    const expenseVerbAfter = /\b(?:vanginen|vanginar|vanganga|kattinen|poten|selavu|panen)\b/i.test(after);
 
-    if (expenseVerbBefore || categoryOrNounBefore || (nounPhraseBefore && before.length > 0)) {
+    if (expenseVerbBefore || categoryOrNounBefore || dativeOrCurrencyAfter || expenseVerbAfter || (nounPhraseBefore && before.length > 0)) {
       return { amount: amountVal, match: amountStr };
     }
   }
@@ -225,22 +227,92 @@ function amountFromTranscript(transcript) {
 
   return null;
 }
-
-function dateForOffset(offset, now = new Date()) {
+export function dateForOffset(offset, now = new Date()) {
   const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-const FAMILY_ALIASES = [
-  { key: "dad", match: /\b(?:dad|father|appa|engappa)\b/i, tamil: /(?:^|[\s.,!?])(?:அப்பா|தந்தை)(?:[\s.,!?]|$)/u, names: ["dad", "father", "appa", "engappa", "அப்பா", "தந்தை"] },
-  { key: "mom", match: /\b(?:mom|mother|amma|engamma)\b/i, tamil: /(?:^|[\s.,!?])(?:அம்மா|தாய்)(?:[\s.,!?]|$)/u, names: ["mom", "mother", "amma", "engamma", "அம்மா", "தாய்"] },
-  { key: "brother", match: /\b(?:brother|bro|anna|thambi)\b/i, tamil: /(?:^|[\s.,!?])(?:அண்ணன்|தம்பி)(?:[\s.,!?]|$)/u, names: ["brother", "bro", "anna", "thambi", "அண்ணன்", "தம்பி"] },
-  { key: "sister", match: /\b(?:sister|sis|akka|thangai)\b/i, tamil: /(?:^|[\s.,!?])(?:அக்கா|தங்கை)(?:[\s.,!?]|$)/u, names: ["sister", "sis", "akka", "thangai", "அக்கா", "தங்கை"] },
-  { key: "husband", match: /\b(?:husband|hubby)\b/i, tamil: /(?:^|[\s.,!?])(?:கணவர்|வீட்டுக்காரர்)(?:[\s.,!?]|$)/u, names: ["husband", "கணவர்", "வீட்டுக்காரர்"] },
-  { key: "wife", match: /\b(?:wife)\b/i, tamil: /(?:^|[\s.,!?])(?:மனைவி|மனைவியார்)(?:[\s.,!?]|$)/u, names: ["wife", "மனைவி", "மனைவியார்"] }
-];
+export function parseRelativeDate(text, now = new Date()) {
+  if (!text || typeof text !== "string") return "";
+  if (/\b(?:day\s+before\s+yesterday|munthanethu|muntha\s+naal)\b|முந்தாநேற்று|முந்தைய\s+நாள்/ui.test(text)) {
+    return dateForOffset(-2, now);
+  }
+  if (/\b(?:yesterday|nethu|netru)\b|நேற்று/ui.test(text)) {
+    return dateForOffset(-1, now);
+  }
+  if (/\b(?:tomorrow|naalaiku|nalaiku)\b|நாளை/ui.test(text)) {
+    return dateForOffset(1, now);
+  }
+  if (/\b(?:today|inniku|inraiku)\b|இன்று/ui.test(text)) {
+    return dateForOffset(0, now);
+  }
+  return "";
+}
 
-export function parseVoiceTranscript(transcript, { members = [], memberAliases = [], aliases = [], currentUserId = "", now = new Date() } = {}) {
+export function cleanExpenseDescription(text) {
+  if (!text || typeof text !== "string") return "";
+  let s = text.trim();
+
+  // 1. Spoken correction pattern (e.g. "150 wait no 180")
+  s = s.replace(/\d[\d,]*(?:\.\d{1,2})?\s*(?:wait\s+no|no\s+wait|sorry|wait|no\s+not)\s+(?:no\s+)?/gi, " ");
+
+  // 2. Remove payment source phrases:
+  // Shared Household phrases
+  s = s.replace(/\b(?:from\s+|using\s+)?shared\s+household(?:\s+funds?|\s+money|\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?household\s+money(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?shared\s+funds?(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?common\s+(?:household\s+)?funds?(?:\s+la)?\b/gi, " ");
+
+  // Personal phrases: CRITICAL negative lookahead to preserve "personal care"
+  s = s.replace(/\b(?:from\s+|using\s+)?(?:my\s+)?personal\s+money(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?(?:my\s+)?personal\s+(?:account|funds?)(?:\s+la)?\b/gi, " ");
+  s = s.replace(/\b(?:from\s+|using\s+)?(?:my\s+)?(?:own\s+money|own\s+pocket|my\s+pocket)\b/gi, " ");
+  s = s.replace(/\bpersonal\b(?!\s*care\b)(?:\s+la)?/gi, " ");
+
+  // Tanglish payment sources
+  s = s.replace(/\b(?:from\s+)?(?:veetu|veettu)\s+(?:panam|kaasu|panathula|kaasula|fund)\b/gi, " ");
+  s = s.replace(/\b(?:from\s+)?sontha\s+(?:panam|kaasu|panathula|kaasula|selavu)\b/gi, " ");
+
+  // Tamil payment sources
+  s = s.replace(/(?:என்\s*|என்னுடைய\s*)?சொந்தப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ");
+  s = s.replace(/(?:பொதுவான\s*|பொதுப்\s*|குடும்பப்\s*)?வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ");
+  s = s.replace(/சொந்த\s*காசு|வீட்டு\s*காசு/gu, " ");
+
+  // 3. Remove date words (relative dates)
+  s = s.replace(/\b(?:day\s+before\s+yesterday|munthanethu|muntha\s+naal)\b|முந்தாநேற்று|முந்தைய\s+நாள்/gui, " ");
+  s = s.replace(/\b(?:yesterday|nethu|netru)\b|நேற்று/gui, " ");
+  s = s.replace(/\b(?:today|inniku|inraiku)\b|இன்று/gui, " ");
+  s = s.replace(/\b(?:tomorrow|naalaiku|nalaiku)\b|நாளை/gui, " ");
+
+  // 4. Remove verbs, prepositions, amounts, and currency terms
+  s = s.replace(/\b(i|we|my|naan|nan|en|enakku|ennoda)\s+(spent|paid|pay|add|record|bought|vanginen|vanginar|vanganga|kattinen|poten)\b/gi, " ");
+  s = s.replace(/\b(spent|paid|pay|add|record|bought|expense|vanginen|vanginar|vanganga|kattinen|poten)\b/gi, " ");
+  s = s.replace(/\b(rupees?|rs\.?|inr|ruba(?:i)?|rooba(?:i)?)\b/gi, " ");
+  s = s.replace(/₹|ரூபாய்க்கு|ரூபாய்/gu, " ");
+  s = s.replace(/எனது|என்னுடைய|நான்|செலவு|செலுத்தினேன்|செலுத்தினார்|செலுத்தினாங்க|வாங்கினேன்|வாங்கினார்|வாங்கினாங்க|வாங்கினார்கள்/gu, " ");
+
+  // 5. Remove family roles if used as subject
+  s = s.replace(/\b(dad|mom|father|mother|brother|sister|husband|wife|appa|amma|anna|thambi|akka|thangai)\b/gi, " ");
+  s = s.replace(/அப்பா|அம்மா|கணவர்|மனைவி|தந்தை|தாய்|அண்ணன்|தம்பி|அக்கா|தங்கை/gu, " ");
+
+  // 6. Remove standalone numbers
+  s = s.replace(/\b\d+(?:\.\d+)?\b/g, " ");
+
+  // 7. Clean punctuation and dangling prepositions
+  s = s.replace(/[.,!?]/g, " ");
+  s = s.replace(/\b(?:for|on|in|at)\b/gi, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  s = s.replace(/^(?:for|from|using|on|in|to|ku|la|at|the|a|an)\s+/i, "").trim();
+  s = s.replace(/\s+(?:for|from|using|on|in|to|ku|la|at|the|a|an)$/i, "").trim();
+
+  // Capitalize first letter
+  if (s) {
+    s = s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  return s;
+}
+
+export function parseVoiceTranscript(transcript, { members = [], currentUserId = "", now = new Date() } = {}) {
   const text = String(transcript || "").trim();
 
   // Casual chatter filter (e.g. "Hello good morning how are you", "Just checking the app")
@@ -259,61 +331,40 @@ export function parseVoiceTranscript(transcript, { members = [], memberAliases =
     };
   }
 
-  const allAliases = [...memberAliases, ...aliases];
-  const isYesterday = /\byesterday\b|நேற்று/ui.test(text);
-  const isToday = /\btoday\b|இன்று/ui.test(text);
-  const occurred = isYesterday ? dateForOffset(-1, now) : isToday ? dateForOffset(0, now) : "";
+  const occurred = parseRelativeDate(text, now);
 
   // 1. Payer identification
   let identifiedMember = null;
 
-  // Check custom household member aliases first
-  for (const customAlias of allAliases) {
-    if (customAlias.alias && customAlias.user_id) {
-      const aliasPattern = new RegExp(`(?:^|[\\s.,!?])${customAlias.alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[\\s.,!?]|$)`, "i");
-      if (aliasPattern.test(text)) {
-        identifiedMember = members.find(m => (m.user_id || m.id) === customAlias.user_id) || { user_id: customAlias.user_id, name: customAlias.alias };
-        break;
-      }
+  // Match only actual registered household members (by their registered name or token)
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  identifiedMember = members.find(member => {
+    if (!member.name) return false;
+    const cleanName = member.name.trim();
+    if (!cleanName) return false;
+    // Direct whole name match
+    const exactRegex = new RegExp(`(?:^|[\\s.,!?])${esc(cleanName)}(?:[\\s.,!?]|$)`, "iu");
+    if (exactRegex.test(text)) return true;
+    // Individual token match (e.g. member is "Dad Kumar", speech has "Dad")
+    const tokens = cleanName.split(/\s+/).filter(t => t.length >= 3);
+    for (const token of tokens) {
+      const tokenRegex = new RegExp(`(?:^|[\\s.,!?])${esc(token)}(?:[\\s.,!?]|$)`, "iu");
+      if (tokenRegex.test(text)) return true;
     }
-  }
+    return false;
+  });
 
-  // Check exact member name
-  if (!identifiedMember) {
-    identifiedMember = members.find(member => {
-      if (!member.name || (member.user_id || member.id) === currentUserId) return false;
-      return new RegExp(`(?:^|[\\s.,!?])${member.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:[\\s.,!?]|$)`, "i").test(text);
-    });
-  }
+  const roleMentioned = /\b(dad|mom|father|mother|brother|sister|wife|husband|my partner|friend|appa|amma|anna|thambi|akka|thangai)\b/i.test(text)
+    || /(?:^|[\s.,!?])(?:அப்பா|அம்மா|கணவர்|மனைவி|தந்தை|தாய்|அண்ணன்|தம்பி|அக்கா|தங்கை)(?:[\s.,!?]|$)/u.test(text);
 
-  // Check built-in family alias groups (Dad, Mom, etc.)
-  let aliasMentioned = false;
-  let genericPayerWord = "";
-  if (!identifiedMember) {
-    for (const alias of FAMILY_ALIASES) {
-      if (alias.match.test(text) || alias.tamil.test(text)) {
-        aliasMentioned = true;
-        genericPayerWord = alias.key;
-        const matchingMembers = members.filter(m => {
-          const mName = (m.name || "").toLowerCase();
-          return alias.names.some(n => mName.includes(n.toLowerCase()));
-        });
-        if (matchingMembers.length === 1) {
-          identifiedMember = matchingMembers[0];
-          break;
-        }
-      }
-    }
-  }
-
-  const payerMention = aliasMentioned || /\b(dad|mom|father|mother|brother|sister|wife|husband|my partner|friend)\b/i.test(text) || /(?:^|[\s.,!?])(?:அப்பா|அம்மா|கணவர்|மனைவி|தந்தை|தாய்)(?:[\s.,!?]|$)/u.test(text);
-  const selfMention = /\b(i|my|mine|naan|nan|en|enakku|ennoda|ennudaiya|kuduthen|poten|kattinen|vanginen|sapten|pannen)\b/i.test(text) || /(?:^|[\s.,!?])(?:நான்|என்னுடைய|என்|எனது|வாங்கினேன்|செலுத்தினேன்|போட்டேன்|கொடுத்தேன்|செய்தேன்|கட்டினேன்)(?:[\s.,!?]|$)/u.test(text);
+  const selfMention = /\b(i|my|mine|naan|nan|en|enakku|ennoda|ennudaiya|kuduthen|poten|kattinen|vanginen|sapten|pannen)\b/i.test(text)
+    || /(?:^|[\s.,!?])(?:நான்|என்னுடைய|என்|எனது|வாங்கினேன்|செலுத்தினேன்|போட்டேன்|கொடுத்தேன்|செய்தேன்|கட்டினேன்)(?:[\s.,!?]|$)/u.test(text);
 
   let payer = "";
   let needsPayer = false;
   if (identifiedMember) {
     payer = identifiedMember.user_id || identifiedMember.id;
-  } else if (payerMention) {
+  } else if (roleMentioned) {
     needsPayer = true;
     payer = "";
   } else if (selfMention) {
@@ -321,12 +372,15 @@ export function parseVoiceTranscript(transcript, { members = [], memberAliases =
   }
 
   // 2. Payment source: PERSONAL vs SHARED_HOUSEHOLD
-  const PERSONAL_REGEX = /\b(?:personal|personal\s+money|personal\s+la|my\s+own\s+money|own\s+money|my\s+pocket|own\s+pocket|from\s+my\s+pocket|from\s+my\s+personal\s+money|using\s+my\s+personal\s+money|sontha\s+panam|sontha\s+kaasu|sontha\s+panathula|sontha\s+kaasula|sontha\s+selavu)\b|சொந்த\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|சொந்தப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|என்\s*சொந்த\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|என்னுடைய\s*சொந்த\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/ui;
-  const SHARED_REGEX = /\b(?:shared|shared\s+funds?|shared\s+la|household\s+money|household\s+fund|veetu\s+panam|veetu\s+kaasu|veetu\s+panathula|veetu\s+kaasula|veetu\s+fund|common\s+fund|common\s+household\s+fund|household\s+funds?|shared\s+money|from\s+shared\s+funds?|from\s+household\s+money|common\s+account)\b|வீட்டுப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|வீட்டு\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|பொதுவான\s*வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|பொதுப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|குடும்பப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/ui;
+  const PERSONAL_REGEX = /\b(?:personal|personal\s+money|personal\s+la|my\s+own\s+money|own\s+money|my\s+pocket|own\s+pocket|from\s+my\s+pocket|from\s+my\s+personal\s+money|using\s+my\s+personal\s+money|personal\s+account|personal\s+funds?|sontha\s+panam|sontha\s+kaasu|sontha\s+panathula|sontha\s+kaasula|sontha\s+selavu)\b|சொந்த\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|சொந்தப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|என்\s*சொந்த\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|என்னுடைய\s*சொந்த\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/ui;
+  const SHARED_REGEX = /\b(?:shared|shared\s+funds?|shared\s+la|household\s+money|household\s+fund|shared\s+household|from\s+shared\s+household|veetu\s+panam|veetu\s+kaasu|veetu\s+panathula|veetu\s+kaasula|veetu\s+fund|common\s+fund|common\s+household\s+fund|household\s+funds?|shared\s+money|from\s+shared\s+funds?|from\s+household\s+money|common\s+account)\b|வீட்டுப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|வீட்டு\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|பொதுவான\s*வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|பொதுப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|குடும்பப்\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/ui;
 
   let payment_source = "";
   let funding = "";
-  if (PERSONAL_REGEX.test(text)) {
+  // Check that "personal care" is not mistaken for personal payment source unless explicit personal phrase
+  const isPersonalCareOnly = /\bpersonal\s+care\b/i.test(text) && !/\b(?:from\s+|using\s+)?(?:my\s+)?personal\s+money|personal\s+la|own\s+money|sontha\b/i.test(text);
+
+  if (!isPersonalCareOnly && PERSONAL_REGEX.test(text)) {
     payment_source = "PERSONAL";
     funding = "personal";
   } else if (SHARED_REGEX.test(text)) {
@@ -338,9 +392,10 @@ export function parseVoiceTranscript(transcript, { members = [], memberAliases =
   const multiItems = parseMultiItems(text);
   if (multiItems && multiItems.length >= 2) {
     const expenses = multiItems.map(item => {
-      const cat = detectCategory(item.label);
+      const cleanDesc = cleanExpenseDescription(item.label);
+      const cat = detectCategory(cleanDesc) || detectCategory(item.label) || "oth";
       return {
-        description: item.label.charAt(0).toUpperCase() + item.label.slice(1),
+        description: cleanDesc || item.label,
         amount: item.amount,
         currency: "INR",
         category: cat,
@@ -360,13 +415,13 @@ export function parseVoiceTranscript(transcript, { members = [], memberAliases =
       };
     });
 
-    const totalAmount = multiItems.reduce((sum, item) => sum + item.amount, 0);
-    const combinedDesc = multiItems.map(i => i.label).join(", ");
-    const combinedNotes = multiItems.map(i => `${i.label}: ₹${i.amount}`).join(", ");
+    const totalAmt = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const combinedDesc = expenses.map(e => e.description).join(", ");
+    const combinedNotes = expenses.map(e => `${e.description}: ₹${e.amount}`).join(", ");
 
     return {
       expenses,
-      amount: String(totalAmount),
+      amount: String(totalAmt),
       category: expenses[0]?.category || "veg",
       description: combinedDesc,
       occurred,
@@ -386,28 +441,8 @@ export function parseVoiceTranscript(transcript, { members = [], memberAliases =
   const needsClarification = [];
 
   if (amountResult?.amount) {
-    // Clean description from text
-    let clean = text;
-
-    // Handle spoken correction in text
-    clean = clean.replace(/\d[\d,]*(?:\.\d{1,2})?\s*(?:wait\s+no|no\s+wait|sorry|wait|no\s+not)\s+(?:no\s+)?/gi, " ");
-
-    clean = clean
-      .replace(new RegExp(amountResult.match.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " ")
-      .replace(/\b(?:using\s+my\s+personal\s+money|from\s+household\s+money|from\s+shared\s+funds?|personal\s+money|household\s+money|shared\s+funds?|common\s+funds?|own\s+money|my\s+personal\s+money|veetu\s+panathula|veetu\s+kaasula|sontha\s+panathula|sontha\s+kaasula|veetu\s+panam|sontha\s+panam|personal\s+money\s+la)\b/gi, " ")
-      .replace(/பொதுவான\s*வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|சொந்தப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?|குடும்பப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ")
-      .replace(/\b(i|we|my|naan|nan|en|enakku|ennoda)?\s*(spent|paid|pay|add|record|bought|expense|for|on|in|using|from|rupees?|rs\.?|inr|ruba(?:i)?|rooba(?:i)?|today|yesterday|dad|mom|father|mother|wife|husband|partner|brother|sister|at|the|a|an|ku|la|vanginen|vanginar|vanginaru|vanganga|kattinen|poten)\b/gi, " ")
-      .replace(/₹|ரூபாய்க்கு|ரூபாய்|எனது|என்னுடைய|நான்|செலவு|செலுத்தினேன்|செலுத்தினார்|செலுத்தினாங்க|வாங்கினேன்|வாங்கினார்|வாங்கினாங்க|வாங்கினார்கள்|இன்று|நேற்று|க்கு/gu, " ")
-      .replace(/அப்பா|அம்மா|கணவர்|மனைவி|தந்தை|தாய்/gu, " ")
-      .replace(/[.,!?]/g, " ").replace(/\s+/g, " ").trim();
-
-    clean = clean.replace(/^(?:we|i|my|for|from|to|ku|la|naan)\s+/i, "").trim();
-
-    if (identifiedMember) {
-      clean = clean.replace(new RegExp(`\\b${identifiedMember.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "ig"), "").trim();
-    }
-
-    description = clean.replace(/\s+/g, " ").trim();
+    // Clean description from text using unified cleaner
+    description = cleanExpenseDescription(text);
   }
 
   // Ambiguous statement check (e.g. "I spent 200")
@@ -428,10 +463,6 @@ export function parseVoiceTranscript(transcript, { members = [], memberAliases =
 
   if (needsPayer) {
     needsClarification.push("paid_by");
-  }
-
-  if (description) {
-    description = description.charAt(0).toUpperCase() + description.slice(1);
   }
 
   const singleExpense = {
@@ -455,7 +486,7 @@ export function parseVoiceTranscript(transcript, { members = [], memberAliases =
   };
 
   return {
-    expenses: [singleExpense],
+    expenses: amountResult?.amount ? [singleExpense] : [],
     amount: amountResult?.amount != null ? amountResult.amount.toString() : "",
     category: category || "",
     description: description.slice(0, 120),

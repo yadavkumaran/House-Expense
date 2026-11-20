@@ -425,8 +425,7 @@ const state = {
   realtimeRefreshTimer: null,
   listening: null,
   receiptUrl: null,
-  voice: null,
-  memberAliases: []
+  voice: null
 };
 
 state.uiPreferences = loadUiPreferences();
@@ -1143,6 +1142,179 @@ function alertRows() {
 
 function renderInsights() {
   const alerts = alertRows();
+  const activeExpenses = (state.expenses || []).filter(e => !e.deleted_at);
+
+  // 1. Local Date Calculations (Zero UTC skew)
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}`;
+
+  const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+  const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  const prevMonthKey = `${prevYear}-${String(prevMonth + 1).padStart(2, "0")}`;
+
+  const curExpenses = activeExpenses.filter(e => e.occurred_on && e.occurred_on.startsWith(currentMonthKey));
+  const prevExpenses = activeExpenses.filter(e => e.occurred_on && e.occurred_on.startsWith(prevMonthKey));
+
+  // Overview Metrics
+  const curTotal = curExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const prevTotal = prevExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const daysElapsed = Math.max(1, now.getDate());
+  const dailyAverage = curTotal / daysElapsed;
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const projectedTotal = dailyAverage * daysInMonth;
+
+  const todayStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayTotal = curExpenses.filter(e => e.occurred_on === todayStr).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  // Past 7 days (Weekly spending)
+  const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  const sevenDaysAgoStr = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, "0")}-${String(sevenDaysAgo.getDate()).padStart(2, "0")}`;
+  const thisWeekExpenses = activeExpenses.filter(e => e.occurred_on >= sevenDaysAgoStr && e.occurred_on <= todayStr);
+  const thisWeekTotal = thisWeekExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  // Highest spending day
+  const dayMap = {};
+  curExpenses.forEach(e => {
+    dayMap[e.occurred_on] = (dayMap[e.occurred_on] || 0) + Number(e.amount || 0);
+  });
+  let highestDay = "";
+  let highestDayAmt = 0;
+  for (const [day, amt] of Object.entries(dayMap)) {
+    if (amt > highestDayAmt) {
+      highestDayAmt = amt;
+      highestDay = day;
+    }
+  }
+
+  // Month-over-month change percentage
+  const momPct = prevTotal > 0 ? Math.round(((curTotal - prevTotal) / prevTotal) * 100) : null;
+
+  // 2. Category Breakdown & Trends
+  const curCatTotals = {};
+  curExpenses.forEach(e => {
+    const c = e.category || "oth";
+    curCatTotals[c] = (curCatTotals[c] || 0) + Number(e.amount || 0);
+  });
+  const prevCatTotals = {};
+  prevExpenses.forEach(e => {
+    const c = e.category || "oth";
+    prevCatTotals[c] = (prevCatTotals[c] || 0) + Number(e.amount || 0);
+  });
+
+  const sortedCatKeys = Object.keys(curCatTotals).sort((a, b) => curCatTotals[b] - curCatTotals[a]);
+  const topCatKey = sortedCatKeys[0] || null;
+
+  // 3. Weekly Trends in Current Month
+  const weekBuckets = [
+    { label: "Days 1–7", total: 0 },
+    { label: "Days 8–14", total: 0 },
+    { label: "Days 15–21", total: 0 },
+    { label: "Days 22–31", total: 0 }
+  ];
+  curExpenses.forEach(e => {
+    const dayNum = parseInt(e.occurred_on.slice(-2), 10);
+    const amt = Number(e.amount || 0);
+    if (dayNum <= 7) weekBuckets[0].total += amt;
+    else if (dayNum <= 14) weekBuckets[1].total += amt;
+    else if (dayNum <= 21) weekBuckets[2].total += amt;
+    else weekBuckets[3].total += amt;
+  });
+  const maxWeekAmt = Math.max(1, ...weekBuckets.map(w => w.total));
+
+  // 4. Family & Payment Source Breakdown
+  const memberTotals = {};
+  curExpenses.forEach(e => {
+    const pid = e.paid_by || "unassigned";
+    memberTotals[pid] = (memberTotals[pid] || 0) + Number(e.amount || 0);
+  });
+  const sortedMemberIds = Object.keys(memberTotals).sort((a, b) => memberTotals[b] - memberTotals[a]);
+
+  const personalTotal = curExpenses
+    .filter(e => (e.payment_source || "PERSONAL") === "PERSONAL" || e.funding === "personal")
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+  const sharedTotal = curExpenses
+    .filter(e => e.payment_source === "SHARED_HOUSEHOLD" || (e.funding === "shared" && e.payment_source !== "PERSONAL"))
+    .reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalFunding = personalTotal + sharedTotal || 1;
+  const personalPct = Math.round((personalTotal / totalFunding) * 100);
+  const sharedPct = 100 - personalPct;
+
+  // 5. Dynamic Smart Insights with Safe LocalStorage Dismissal
+  const storageKey = `hearth_dismissed_insights_${state.room?.id || "default"}`;
+  let dismissedIds = [];
+  try {
+    dismissedIds = JSON.parse(localStorage.getItem(storageKey) || "[]");
+  } catch {}
+
+  const candidateInsights = [];
+
+  // Insight A: Top Category Spotlight
+  if (topCatKey && curCatTotals[topCatKey] > 0 && curTotal > 0) {
+    const topPct = Math.round((curCatTotals[topCatKey] / curTotal) * 100);
+    if (topPct >= 20) {
+      candidateInsights.push({
+        id: "top-cat-share",
+        icon: "🏷️",
+        title: `${categoryName(topCatKey)} represents ${topPct}% of spending`,
+        detail: `${categoryName(topCatKey)} totals ${money(curCatTotals[topCatKey])} across ${curExpenses.filter(e => (e.category || "oth") === topCatKey).length} transactions this month.`,
+        level: topPct >= 50 ? "warn" : ""
+      });
+    }
+  }
+
+  // Insight B: Daily Spending Pace & Projection
+  if (curTotal > 0) {
+    candidateInsights.push({
+      id: "daily-pace",
+      icon: "⚡",
+      title: `Daily average spending: ${money(dailyAverage)} / day`,
+      detail: `At this pace over ${daysElapsed} days, projected monthly spending is ${money(projectedTotal)}.`,
+      level: ""
+    });
+  }
+
+  // Insight C: Personal vs Shared Funding Balance
+  if (curTotal > 0) {
+    candidateInsights.push({
+      id: "funding-split",
+      icon: "💳",
+      title: `Funding split: ${personalPct}% Personal · ${sharedPct}% Shared`,
+      detail: `${money(personalTotal)} paid from personal pocket and ${money(sharedTotal)} from shared household fund.`,
+      level: personalPct > 70 ? "warn" : ""
+    });
+  }
+
+  // Insight D: Month-over-month Trend
+  if (momPct !== null && Math.abs(momPct) >= 5) {
+    candidateInsights.push({
+      id: "month-change",
+      icon: momPct > 0 ? "📈" : "📉",
+      title: momPct > 0 ? `Spending is up ${momPct}% vs last month` : `Spending is down ${Math.abs(momPct)}% vs last month`,
+      detail: `${money(curTotal)} this month compared to ${money(prevTotal)} spent in the previous month.`,
+      level: momPct > 20 ? "warn" : ""
+    });
+  }
+
+  // Insight E: Peak Single Transaction
+  if (curExpenses.length > 0) {
+    const sortedByAmt = [...curExpenses].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+    const peak = sortedByAmt[0];
+    if (peak && Number(peak.amount) > 0) {
+      candidateInsights.push({
+        id: "peak-transaction",
+        icon: "💎",
+        title: `Largest transaction: ${money(peak.amount)}`,
+        detail: `"${peak.description}" paid by ${profileName(peak.paid_by)} on ${dateLabel(peak.occurred_on)} (${categoryName(peak.category)}).`,
+        level: ""
+      });
+    }
+  }
+
+  const activeInsights = candidateInsights.filter(c => !dismissedIds.includes(c.id));
+  const hasDismissed = dismissedIds.length > 0;
+
   return `
     <header class="top">
       <div>
@@ -1151,46 +1323,243 @@ function renderInsights() {
       </div>
       <button class="button sm soft" data-action="add-spending-alert-dialog">+ Alert</button>
     </header>
-    <p class="muted small">${tr("explainAlerts")}</p>
 
-    ${alerts.length ? alerts.map(alert => `
-      <article class="card ${alert.level ? "notice warn" : ""}" style="margin:12px 0;">
-        <h3 style="margin-bottom:6px;">${esc(alert.title)}</h3>
-        <p class="small" style="margin-bottom:12px;">${esc(alert.detail)}</p>
-        <div class="list">
-          ${alert.rows.map(row => expenseRow(row, true, true)).join("")}
-        </div>
-      </article>
-    `).join("") : `
-      <div class="panel empty">
-        <span class="empty-icon">✅</span>
-        <p>${tr("noAlerts")}</p>
+    <!-- 1. Expense Overview Cards -->
+    <section class="panel" style="margin-bottom:14px;">
+      <div class="between" style="margin-bottom:10px;">
+        <h3 style="font-size:15px;">📊 Spending Overview</h3>
+        <span class="tag small">${curExpenses.length} transaction${curExpenses.length === 1 ? "" : "s"}</span>
       </div>
-    `}
+      <div class="grid-two" style="gap:10px;">
+        <div class="card" style="padding:12px;">
+          <div class="tiny muted" style="text-transform:uppercase; letter-spacing:0.5px;">This Month</div>
+          <div class="money" style="font-size:20px; font-weight:700; margin-top:4px;">${money(curTotal)}</div>
+          <div class="small muted" style="margin-top:4px;">
+            ${momPct !== null
+              ? (momPct > 0
+                  ? `<span style="color:var(--danger, #ef4444); font-weight:600;">+${momPct}%</span> vs prev month`
+                  : `<span style="color:#10b981; font-weight:600;">${momPct}%</span> vs prev month`)
+              : `<span class="muted">First month recorded</span>`}
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px;">
+          <div class="tiny muted" style="text-transform:uppercase; letter-spacing:0.5px;">Previous Month</div>
+          <div class="money" style="font-size:20px; font-weight:700; margin-top:4px;">${money(prevTotal)}</div>
+          <div class="small muted" style="margin-top:4px;">${prevExpenses.length} transaction${prevExpenses.length === 1 ? "" : "s"}</div>
+        </div>
+
+        <div class="card" style="padding:12px;">
+          <div class="tiny muted" style="text-transform:uppercase; letter-spacing:0.5px;">Daily Average</div>
+          <div class="money" style="font-size:18px; font-weight:600; margin-top:4px;">${money(dailyAverage)} <span class="tiny muted">/ day</span></div>
+          <div class="small muted" style="margin-top:4px;">Today: <strong>${money(todayTotal)}</strong></div>
+        </div>
+
+        <div class="card" style="padding:12px;">
+          <div class="tiny muted" style="text-transform:uppercase; letter-spacing:0.5px;">Highest Spending Day</div>
+          <div class="money" style="font-size:18px; font-weight:600; margin-top:4px;">${highestDay ? money(highestDayAmt) : "—"}</div>
+          <div class="small muted" style="margin-top:4px;">${highestDay ? dateLabel(highestDay) : "No expenses yet"}</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Spending Trends & Weekly Pacing -->
+    <section class="panel" style="margin-bottom:14px;">
+      <div class="between" style="margin-bottom:8px;">
+        <h3 style="font-size:15px;">📈 Weekly Spending Pace</h3>
+        <span class="tiny muted">Last 7 days: <strong>${money(thisWeekTotal)}</strong></span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+        ${weekBuckets.map(wb => {
+          const pct = Math.round((wb.total / maxWeekAmt) * 100);
+          return `
+            <div>
+              <div class="between tiny muted" style="margin-bottom:3px;">
+                <span>${wb.label}</span>
+                <span class="money" style="font-weight:600;">${money(wb.total)}</span>
+              </div>
+              <div class="progress" style="height:7px;">
+                <i style="width:${pct}%;"></i>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </section>
+
+    <!-- 3. Category Insights Breakdown -->
+    <section class="panel" style="margin-bottom:14px;">
+      <div class="between" style="margin-bottom:8px;">
+        <h3 style="font-size:15px;">🏷️ Category Breakdown</h3>
+        ${topCatKey ? `<span class="tag small">Top: ${categoryName(topCatKey)}</span>` : ""}
+      </div>
+      ${sortedCatKeys.length ? `
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+          ${sortedCatKeys.map(cid => {
+            const amt = curCatTotals[cid];
+            const pct = curTotal > 0 ? Math.round((amt / curTotal) * 100) : 0;
+            const pAmt = prevCatTotals[cid] || 0;
+            const catDiff = pAmt > 0 ? Math.round(((amt - pAmt) / pAmt) * 100) : null;
+            return `
+              <div>
+                <div class="between" style="font-size:13px; margin-bottom:3px;">
+                  <span style="font-weight:600;">${esc(categoryName(cid))}</span>
+                  <div>
+                    <span class="money" style="font-weight:600;">${money(amt)}</span>
+                    <span class="tiny muted">(${pct}%)</span>
+                    ${catDiff !== null
+                      ? `<span class="tag small ${catDiff > 0 ? "warn" : "neutral"}" style="margin-left:4px; font-size:10px;">${catDiff > 0 ? `+${catDiff}%` : `${catDiff}%`}</span>`
+                      : (pAmt === 0 && amt > 0 ? `<span class="tag small neutral" style="margin-left:4px; font-size:10px;">New</span>` : "")
+                    }
+                  </div>
+                </div>
+                <div class="progress" style="height:7px;">
+                  <i style="width:${pct}%;"></i>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : `<div class="empty small">${tr("noExpenses")}</div>`}
+    </section>
+
+    <!-- 4. Family & Payment Source Breakdown -->
+    <section class="panel" style="margin-bottom:14px;">
+      <div class="between" style="margin-bottom:8px;">
+        <h3 style="font-size:15px;">👥 Family & Funding Split</h3>
+      </div>
+      
+      <!-- Funding Split Bar -->
+      <div style="margin-bottom:14px;">
+        <div class="between tiny muted" style="margin-bottom:4px;">
+          <span>Personal Pocket: <strong>${money(personalTotal)}</strong> (${personalPct}%)</span>
+          <span>Shared Fund: <strong>${money(sharedTotal)}</strong> (${sharedPct}%)</span>
+        </div>
+        <div class="progress" style="height:8px; display:flex;">
+          <i style="width:${personalPct}%; background:linear-gradient(90deg, #f59e0b, #fbbf24);"></i>
+          <i style="width:${sharedPct}%; background:linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 62%, white));"></i>
+        </div>
+      </div>
+
+      <!-- Member Spending Breakdown -->
+      <h4 style="font-size:13px; margin-bottom:6px; color:var(--muted);">Who Paid This Month</h4>
+      ${sortedMemberIds.length ? `
+        <div class="list">
+          ${sortedMemberIds.map(mid => {
+            const amt = memberTotals[mid];
+            const pct = curTotal > 0 ? Math.round((amt / curTotal) * 100) : 0;
+            const memberName = profileName(mid);
+            return `
+              <div class="list-row" style="padding:6px 0;">
+                <div class="avatar" style="width:28px; height:28px; font-size:12px;">${esc((memberName || "U")[0].toUpperCase())}</div>
+                <div class="grow">
+                  <div style="font-size:13px; font-weight:600;">${esc(memberName)}</div>
+                  <div class="tiny muted">${pct}% of household spend</div>
+                </div>
+                <div class="money" style="font-weight:600; font-size:14px;">${money(amt)}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : `<div class="empty small">No expenses this month.</div>`}
+    </section>
+
+    <!-- 5. Smart Insights (Safe Dismissal, Zero Expense Impact) -->
+    <section class="panel" style="margin-bottom:14px;">
+      <div class="between" style="margin-bottom:8px;">
+        <div>
+          <h3 style="font-size:15px;">💡 Smart Insights</h3>
+          <div class="tiny muted">Observations derived from your actual database records.</div>
+        </div>
+        <div class="row">
+          ${hasDismissed ? `<button class="button sm soft" data-action="reset-dismissed-insights" style="font-size:11px;">Reset Cards</button>` : ""}
+          ${activeInsights.length ? `<button class="button sm soft" data-action="clear-insights" style="font-size:11px;">Clear All</button>` : ""}
+        </div>
+      </div>
+
+      ${activeInsights.length ? activeInsights.map(c => `
+        <article class="card ${c.level ? "notice warn" : ""}" style="margin:8px 0; padding:10px 12px; display:flex; align-items:flex-start; gap:10px;">
+          <span style="font-size:18px; line-height:1.2;">${c.icon}</span>
+          <div class="grow">
+            <strong style="font-size:13px; display:block; margin-bottom:2px;">${esc(c.title)}</strong>
+            <p class="small muted" style="margin:0;">${esc(c.detail)}</p>
+          </div>
+          <button class="button sm soft" data-action="dismiss-insight" data-id="${c.id}" title="Dismiss this insight" style="padding:2px 8px; font-size:12px;">✕</button>
+        </article>
+      `).join("") : `
+        <div class="empty small" style="padding:12px 0;">
+          <span>✅ All smart insight cards reviewed.</span>
+          ${hasDismissed ? `<div style="margin-top:6px;"><button class="button sm soft" data-action="reset-dismissed-insights">Restore Dismissed Cards</button></div>` : ""}
+        </div>
+      `}
+    </section>
+
+    <!-- 6. Spending Alerts -->
+    ${alerts.length ? `
+      <section class="panel">
+        <div class="between" style="margin-bottom:8px;">
+          <h3 style="font-size:15px;">⚠️ Spending Alerts</h3>
+          <button class="button sm soft" data-action="add-spending-alert-dialog">+ Alert</button>
+        </div>
+        ${alerts.map(alert => `
+          <article class="card ${alert.level ? "notice warn" : ""}" style="margin:10px 0;">
+            <h4 style="margin-bottom:4px;">${esc(alert.title)}</h4>
+            <p class="small" style="margin-bottom:10px;">${esc(alert.detail)}</p>
+            <div class="list">
+              ${alert.rows.map(row => expenseRow(row, true, true)).join("")}
+            </div>
+          </article>
+        `).join("")}
+      </section>
+    ` : ""}
   `;
 }
 
-// 4. HOUSEHOLD & SETTINGS VIEW
+// 4. HOUSEHOLD & SETTINGS VIEW (Structured into clean semantic sections)
 function renderHousehold() {
   const dark = state.uiPreferences.theme === "dark"
     || (state.uiPreferences.theme === "system" && document.documentElement.dataset.theme === "dark");
-  const userMembership = state.members.find(m => m.user_id === state.user.id);
+  const userMembership = state.members.find(m => m.user_id === state.user?.id);
   const isOwner = userMembership?.role === "owner";
+  const defaultSourcePref = localStorage.getItem("hearth_default_payment_source") || "PERSONAL";
+  const voiceLangPref = localStorage.getItem("hearth_voice_language") || "en";
 
   return `
     <header class="top">
       <div>
         <div class="brand-chip">${esc(state.room.name)}</div>
-        <h1 class="hd">${esc(tr("household"))}</h1>
+        <h1 class="hd">${esc(tr("settings"))}</h1>
       </div>
       <button class="button sm soft" type="button" data-action="toggle-theme">${dark ? tr("lightTheme") : tr("darkTheme")}</button>
     </header>
 
-    <!-- 1. Household Info & Switcher -->
+    <!-- SECTION A: Profile & Account -->
+    <section class="panel">
+      <div class="between" style="margin-bottom:10px;">
+        <h3>👤 Profile & Account</h3>
+        <span class="tag small ${isOwner ? "" : "neutral"}">${isOwner ? tr("roleOwner") : tr("roleMember")}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <div class="avatar" style="width:44px; height:44px; font-size:16px;">${esc((state.profile.display_name || state.user?.email || "U")[0].toUpperCase())}</div>
+        <div class="grow truncate">
+          <strong>${esc(state.profile.display_name || "User")}</strong>
+          <div class="tiny muted">${esc(state.user?.email || "")}</div>
+          <div class="tiny muted" style="font-family:monospace; margin-top:2px;">ID: ${esc(state.user?.id?.slice(0, 8))}…</div>
+        </div>
+      </div>
+      <form data-form="profile">
+        <label class="field-label">${tr("name")}
+          <input class="field" name="display_name" maxlength="80" value="${esc(state.profile.display_name || "")}">
+        </label>
+        <button class="button primary sm" style="margin-top:8px;">Update Name</button>
+      </form>
+    </section>
+
+    <!-- SECTION B: Household & Family -->
     <section class="panel">
       <div class="between">
         <div>
-          <h3>${esc(state.room.name)}</h3>
+          <h3>🏠 ${esc(state.room.name)}</h3>
           <div class="small muted">Invite code: <strong style="letter-spacing:1px; color:var(--accent);">${esc(state.room.invite_code)}</strong></div>
         </div>
         <div class="row">
@@ -1210,222 +1579,205 @@ function renderHousehold() {
         </div>
       </div>
 
-      <div class="grid-two" style="margin-top:16px;">
+      <div class="grid-two" style="margin-top:12px;">
         <button class="button sm" data-action="create-household-dialog">＋ ${tr("createAnotherRoom")}</button>
         <button class="button sm" data-action="join-household-dialog">🔗 ${tr("joinAnotherRoom")}</button>
       </div>
-    </section>
 
-    <!-- 2. Household Members Management -->
-    <section class="panel">
-      <div class="between">
-        <div>
-          <h3>${tr("membersTitle")}</h3>
-          <div class="small muted">👥 <strong>${formatPeopleInHouse(state.members.length)}</strong></div>
+      <!-- Household Members List -->
+      <div style="margin-top:20px;">
+        <div class="between">
+          <h4 style="margin:0;">${tr("membersTitle")} (${state.members.length})</h4>
+          <button class="button sm soft" data-action="copy-invite" data-code="${esc(state.room.invite_code)}">+ Invite</button>
         </div>
-        <button class="button sm soft" data-action="copy-invite" data-code="${esc(state.room.invite_code)}">+ Invite</button>
-      </div>
-
-      <div class="list" style="margin-top:8px;">
-        ${state.members.map(m => `
-          <div class="list-row">
-            <div class="avatar" style="width:34px; height:34px; font-size:13px;">${esc((m.name || "U")[0].toUpperCase())}</div>
-            <div class="grow">
-              <strong>${esc(m.name)}${m.user_id === state.user.id ? " (You)" : ""}</strong>
-              <div class="tiny muted">${m.role === "owner" ? `<span class="tag small">${tr("roleOwner")}</span>` : `<span class="tag small neutral">${tr("roleMember")}</span>`}</div>
-            </div>
-            ${isOwner && m.user_id !== state.user.id ? `
-              <div class="row">
-                <button class="button sm soft" data-action="toggle-member-role" data-user="${m.user_id}" data-role="${m.role === "owner" ? "member" : "owner"}">
-                  ${m.role === "owner" ? tr("makeMember") : tr("makeOwner")}
-                </button>
-                <button class="button sm danger" data-action="remove-member-dialog" data-user="${m.user_id}" data-name="${esc(m.name)}">Remove</button>
+        <div class="list" style="margin-top:8px;">
+          ${state.members.map(m => `
+            <div class="list-row">
+              <div class="avatar" style="width:34px; height:34px; font-size:13px;">${esc((m.name || "U")[0].toUpperCase())}</div>
+              <div class="grow">
+                <strong>${esc(m.name)}${m.user_id === state.user.id ? " (You)" : ""}</strong>
+                <div class="tiny muted">${m.role === "owner" ? `<span class="tag small">${tr("roleOwner")}</span>` : `<span class="tag small neutral">${tr("roleMember")}</span>`}</div>
               </div>
-            ` : ""}
-          </div>
-        `).join("")}
+              ${isOwner && m.user_id !== state.user.id ? `
+                <div class="row">
+                  <button class="button sm soft" data-action="toggle-member-role" data-user="${m.user_id}" data-role="${m.role === "owner" ? "member" : "owner"}">
+                    ${m.role === "owner" ? tr("makeMember") : tr("makeOwner")}
+                  </button>
+                  <button class="button sm danger" data-action="remove-member-dialog" data-user="${m.user_id}" data-name="${esc(m.name)}">Remove</button>
+                </div>
+              ` : ""}
+            </div>
+          `).join("")}
+        </div>
       </div>
 
-      <div style="margin-top:14px; text-align:right;">
+      <!-- Rooms & Spaces -->
+      <div style="margin-top:20px;">
+        <div class="between">
+          <h4 style="margin:0;">📍 ${tr("rooms")}</h4>
+          <button class="button sm soft" data-action="add-room-dialog">+ ${tr("addRoom")}</button>
+        </div>
+        ${state.rooms.filter(r => !r.deleted_at).length ? `
+          <div class="list" style="margin-top:8px;">
+            ${state.rooms.filter(r => !r.deleted_at).map(r => {
+              const roomExpenses = state.expenses.filter(e => !e.deleted_at && e.room_id === r.id);
+              const expCount = roomExpenses.length;
+              const spent = roomExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+              return `
+                <div class="list-row">
+                  <div class="avatar room-icon" style="width:32px; height:32px; font-size:13px;">📍</div>
+                  <div class="grow">
+                    <strong>${esc(r.name)}</strong>
+                    <div class="small muted">${expCount} expense(s) · ${money(spent)} spent</div>
+                  </div>
+                  <div class="row">
+                    <button class="button sm soft" data-action="edit-room-dialog" data-id="${r.id}" data-name="${esc(r.name)}">${tr("edit")}</button>
+                    <button class="button sm danger" data-action="delete-room-dialog" data-id="${r.id}" data-name="${esc(r.name)}">×</button>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        ` : `<div class="empty small" style="margin-top:6px;">No rooms configured yet.</div>`}
+      </div>
+
+      <!-- Category Budgets -->
+      <div style="margin-top:20px;">
+        <div class="between">
+          <h4 style="margin:0;">💰 ${tr("monthlyBudget")}</h4>
+          <button class="button sm soft" data-action="add-budget-dialog">+ Budget</button>
+        </div>
+        ${state.budgets.length ? `
+          <div class="list" style="margin-top:8px;">
+            ${state.budgets.map(b => `
+              <div class="list-row">
+                <div class="grow">
+                  <strong>${esc(categoryName(b.category))}</strong>
+                  <div class="small muted">Limit: ${money(b.monthly_limit)} / month</div>
+                </div>
+                <button class="button sm danger" data-action="delete-budget" data-id="${b.id}">×</button>
+              </div>
+            `).join("")}
+          </div>
+        ` : `<div class="empty small" style="margin-top:6px;">${tr("budgetNotSet")}</div>`}
+      </div>
+
+      <!-- Household Danger Zone -->
+      <div style="margin-top:20px; padding-top:12px; border-top:1px solid var(--line, rgba(255,255,255,0.08)); text-align:right;">
         <button class="button sm danger" data-action="leave-household-dialog">${tr("leaveHousehold")}</button>
         ${isOwner ? `<button class="button sm danger" style="margin-left:8px;" data-action="delete-household-dialog">${tr("deleteHousehold")}</button>` : ""}
       </div>
     </section>
 
-    <!-- 2b. Voice Nicknames / Aliases -->
-    <section class="panel" id="voice-nicknames-section">
-      <div class="between" style="margin-bottom:6px;">
-        <div>
-          <h3>${tr("voiceNicknamesTitle")}</h3>
-          <div class="small muted" style="margin-top:2px;">${tr("voiceNicknamesHelp")}</div>
-        </div>
-      </div>
-
-      <div class="list" id="alias-list" style="margin-bottom:12px;">
-        ${(state.memberAliases || []).length === 0
-          ? `<div class="empty small">No nicknames added yet. Add one below.</div>`
-          : (state.memberAliases || []).map(a => {
-              const member = state.members.find(m => m.user_id === a.user_id);
-              return `
-                <div class="list-row">
-                  <div class="grow">
-                    <span class="tag" style="font-size:13px; margin-right:6px;">${esc(a.alias)}</span>
-                    <span class="small muted">→ ${esc(member?.name || a.user_id)}</span>
-                  </div>
-                  <button class="button sm danger" data-action="delete-voice-alias" data-id="${a.id}">×</button>
-                </div>`;
-            }).join("")
-        }
-      </div>
-
-      <div class="voice-quick-aliases">
-        <span class="tiny muted" style="align-self:center;">Quick add:</span>
-        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Dad">+ Dad</button>
-        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Mom">+ Mom</button>
-        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Appa">+ Appa</button>
-        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Amma">+ Amma</button>
-        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Anna">+ Anna</button>
-        <button type="button" class="voice-quick-btn" data-action="fill-alias" data-value="Bro">+ Bro</button>
-      </div>
-
-      <form data-form="add-voice-alias" style="display:flex; flex-direction:column; gap:8px;">
-        <div class="grid-two" style="gap:8px;">
-          <label class="field-label">${tr("voiceNicknameWhenISay")}
-            <input class="field" name="alias" maxlength="40" placeholder="${tr("voiceNicknameHint")}" autocomplete="off">
-          </label>
-          <label class="field-label">${tr("voiceNicknameIMean")}
-            ${memberSelect(state.user?.id, "alias_member")}
-          </label>
-        </div>
-        <button class="button soft sm" type="submit" style="align-self:flex-start;">${tr("voiceNicknameAdd")}</button>
+    <!-- SECTION C: Preferences -->
+    <section class="panel">
+      <h3>⚙️ Preferences</h3>
+      <form data-form="profile" style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+        <input type="hidden" name="display_name" value="${esc(state.profile.display_name || "")}">
+        <label class="field-label">${tr("language")}
+          <select class="field" name="language">
+            <option value="en" ${state.profile.language === "en" ? "selected" : ""}>English</option>
+            <option value="ta" ${state.profile.language === "ta" ? "selected" : ""}>தமிழ்</option>
+          </select>
+        </label>
+        <label class="field-label">${tr("voiceLanguagePref")}
+          <span class="small muted" style="display:block; margin-bottom:4px; font-weight:normal;">${tr("voiceLanguagePrefHelp")}</span>
+          <select class="field" name="voice_language">
+            <option value="en" ${voiceLangPref === "en" ? "selected" : ""}>English (India)</option>
+            <option value="ta" ${voiceLangPref === "ta" ? "selected" : ""}>தமிழ் (Tamil)</option>
+          </select>
+        </label>
+        <label class="field-label">Default Payment Source
+          <span class="small muted" style="display:block; margin-bottom:4px; font-weight:normal;">Pre-selected money source when opening Add Expense.</span>
+          <select class="field" name="default_payment_source">
+            <option value="PERSONAL" ${defaultSourcePref === "PERSONAL" ? "selected" : ""}>Personal Pocket</option>
+            <option value="SHARED_HOUSEHOLD" ${defaultSourcePref === "SHARED_HOUSEHOLD" ? "selected" : ""}>Shared Household Fund</option>
+          </select>
+        </label>
+        <button class="button primary sm" style="align-self:flex-start; margin-top:4px;">Save Preferences</button>
       </form>
     </section>
 
-    <!-- 3. Rooms & Spaces Management -->
+    <!-- SECTION D: Appearance -->
     <section class="panel">
-      <div class="between">
-        <div>
-          <h3>${tr("rooms")}</h3>
-          <div class="small muted">${state.rooms.filter(r => !r.deleted_at).length} spaces configured</div>
-        </div>
-        <button class="button sm soft" data-action="add-room-dialog">+ ${tr("addRoom")}</button>
+      <h3>🎨 ${tr("appearance")}</h3>
+      <p class="small muted">${tr("appearanceHelp")}</p>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+        <label class="field-label">${tr("theme")}
+          <select class="field" data-ui-preference="theme">
+            <option value="system" ${state.uiPreferences.theme === "system" ? "selected" : ""}>${tr("themeSystem")}</option>
+            <option value="light" ${state.uiPreferences.theme === "light" ? "selected" : ""}>${tr("themeLight")}</option>
+            <option value="dark" ${state.uiPreferences.theme === "dark" ? "selected" : ""}>${tr("themeDark")}</option>
+          </select>
+        </label>
+        <label class="field-label">${tr("accentColor")}
+          <select class="field" data-ui-preference="accent">
+            <option value="blue" ${state.uiPreferences.accent === "blue" ? "selected" : ""}>${tr("accentBlue")}</option>
+            <option value="teal" ${state.uiPreferences.accent === "teal" ? "selected" : ""}>${tr("accentTeal")}</option>
+            <option value="violet" ${state.uiPreferences.accent === "violet" ? "selected" : ""}>${tr("accentViolet")}</option>
+            <option value="rose" ${state.uiPreferences.accent === "rose" ? "selected" : ""}>${tr("accentRose")}</option>
+          </select>
+        </label>
+        <label class="field-label">${tr("layoutDensity")}
+          <select class="field" data-ui-preference="density">
+            <option value="comfortable" ${state.uiPreferences.density === "comfortable" ? "selected" : ""}>${tr("densityComfortable")}</option>
+            <option value="compact" ${state.uiPreferences.density === "compact" ? "selected" : ""}>${tr("densityCompact")}</option>
+          </select>
+        </label>
+        <label class="field-label">${tr("motionPreference")}
+          <select class="field" data-ui-preference="motion">
+            <option value="system" ${state.uiPreferences.motion === "system" ? "selected" : ""}>${tr("motionSystem")}</option>
+            <option value="reduced" ${state.uiPreferences.motion === "reduced" ? "selected" : ""}>${tr("motionReduced")}</option>
+            <option value="full" ${state.uiPreferences.motion === "full" ? "selected" : ""}>${tr("motionFull")}</option>
+          </select>
+        </label>
       </div>
-      <p class="small muted">Tag expenses with specific rooms to track house maintenance and areas.</p>
-
-      ${state.rooms.filter(r => !r.deleted_at).length ? `
-        <div class="list">
-          ${state.rooms.filter(r => !r.deleted_at).map(r => {
-            const roomExpenses = state.expenses.filter(e => !e.deleted_at && e.room_id === r.id);
-            const expCount = roomExpenses.length;
-            const peopleInRoom = new Set(roomExpenses.map(e => e.paid_by)).size;
-            const spent = roomExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-            return `
-              <div class="list-row">
-                <div class="avatar room-icon" style="width:34px; height:34px; font-size:13px;">📍</div>
-                <div class="grow">
-                  <strong>${esc(r.name)}</strong>
-                  <div class="small muted">👥 ${formatPeopleInRoom(peopleInRoom)} · ${expCount} expense(s) · ${money(spent)} spent</div>
-                </div>
-                <div class="row">
-                  <button class="button sm soft" data-action="edit-room-dialog" data-id="${r.id}" data-name="${esc(r.name)}">${tr("edit")}</button>
-                  <button class="button sm danger" data-action="delete-room-dialog" data-id="${r.id}" data-name="${esc(r.name)}">×</button>
-                </div>
-              </div>
-            `;
-          }).join("")}
-        </div>
-      ` : `<div class="empty small">${tr("noExpenses")} Add living room, kitchen, etc.</div>`}
     </section>
 
-    <!-- 4. Category Budgets -->
+    <!-- SECTION E: Spending Alerts -->
     <section class="panel">
-      <div class="between">
-        <h3>${tr("monthlyBudget")}</h3>
-        <button class="button sm soft" data-action="add-budget-dialog">+ Budget</button>
+      <div class="between" style="margin-bottom:8px;">
+        <div>
+          <h3>🔔 Spending Alerts</h3>
+          <div class="small muted">Get notified when spending thresholds are reached.</div>
+        </div>
+        <button class="button sm soft" data-action="add-spending-alert-dialog">+ Alert</button>
       </div>
-      <p class="small muted">Set monthly targets per category.</p>
-
-      ${state.budgets.length ? `
-        <div class="list">
-          ${state.budgets.map(b => `
+      ${state.spendingAlerts.filter(a => !a.deleted_at).length ? `
+        <div class="list" style="margin-top:8px;">
+          ${state.spendingAlerts.filter(a => !a.deleted_at).map(a => `
             <div class="list-row">
               <div class="grow">
-                <strong>${esc(categoryName(b.category))}</strong>
-                <div class="small muted">Limit: ${money(b.monthly_limit)} / month</div>
+                <strong>${a.category ? esc(categoryName(a.category)) : "Overall Spending"}</strong>
+                <div class="small muted">Threshold: ${money(a.threshold_amount || 0)} (${esc(a.alert_type || "monthly")})</div>
               </div>
-              <div class="row">
-                <button class="button sm danger" data-action="delete-budget" data-id="${b.id}">×</button>
-              </div>
+              <button class="button sm danger" data-action="delete-spending-alert" data-id="${a.id}">×</button>
             </div>
           `).join("")}
         </div>
-      ` : `<div class="empty small">${tr("budgetNotSet")}</div>`}
+      ` : `<div class="empty small" style="margin-top:6px;">No custom spending alerts configured.</div>`}
     </section>
 
-    <!-- 5. User Profile & Language -->
+    <!-- SECTION F: Data & Privacy -->
     <section class="panel">
-      <h3>${tr("appearance")}</h3>
-      <p class="small muted">${tr("appearanceHelp")}</p>
-      <label class="field-label">${tr("theme")}
-        <select class="field" data-ui-preference="theme">
-          <option value="system" ${state.uiPreferences.theme === "system" ? "selected" : ""}>${tr("themeSystem")}</option>
-          <option value="light" ${state.uiPreferences.theme === "light" ? "selected" : ""}>${tr("themeLight")}</option>
-          <option value="dark" ${state.uiPreferences.theme === "dark" ? "selected" : ""}>${tr("themeDark")}</option>
-        </select>
-      </label>
-      <label class="field-label">${tr("accentColor")}
-        <select class="field" data-ui-preference="accent">
-          <option value="blue" ${state.uiPreferences.accent === "blue" ? "selected" : ""}>${tr("accentBlue")}</option>
-          <option value="teal" ${state.uiPreferences.accent === "teal" ? "selected" : ""}>${tr("accentTeal")}</option>
-          <option value="violet" ${state.uiPreferences.accent === "violet" ? "selected" : ""}>${tr("accentViolet")}</option>
-          <option value="rose" ${state.uiPreferences.accent === "rose" ? "selected" : ""}>${tr("accentRose")}</option>
-        </select>
-      </label>
-      <label class="field-label">${tr("layoutDensity")}
-        <select class="field" data-ui-preference="density">
-          <option value="comfortable" ${state.uiPreferences.density === "comfortable" ? "selected" : ""}>${tr("densityComfortable")}</option>
-          <option value="compact" ${state.uiPreferences.density === "compact" ? "selected" : ""}>${tr("densityCompact")}</option>
-        </select>
-      </label>
-      <label class="field-label">${tr("motionPreference")}
-        <select class="field" data-ui-preference="motion">
-          <option value="system" ${state.uiPreferences.motion === "system" ? "selected" : ""}>${tr("motionSystem")}</option>
-          <option value="reduced" ${state.uiPreferences.motion === "reduced" ? "selected" : ""}>${tr("motionReduced")}</option>
-          <option value="full" ${state.uiPreferences.motion === "full" ? "selected" : ""}>${tr("motionFull")}</option>
-        </select>
-      </label>
-    </section>
+      <h3>🔒 Data & Privacy</h3>
+      <p class="small muted">Export your records or manage your application data.</p>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+        <button class="button soft" type="button" data-action="csv" style="justify-content:flex-start;">📥 ${tr("exportCsv")}</button>
+      </div>
 
-    <section class="panel">
-      <h3>${tr("settings")}</h3>
-      <form data-form="profile">
-        <label class="field-label">${tr("name")}<input class="field" name="display_name" maxlength="80" value="${esc(state.profile.display_name)}"></label>
-        <label class="field-label">${tr("language")}<select class="field" name="language">
-          <option value="en" ${state.profile.language === "en" ? "selected" : ""}>English</option>
-          <option value="ta" ${state.profile.language === "ta" ? "selected" : ""}>தமிழ்</option>
-        </select></label>
-        <label class="field-label" style="margin-top:8px;">${tr("voiceLanguagePref")}
-          <span class="small muted" style="display:block; margin-bottom:4px; font-weight:normal;">${tr("voiceLanguagePrefHelp")}</span>
-          <select class="field" name="voice_language">
-            <option value="en" ${(localStorage.getItem("hearth_voice_language")||"en")==="en" ? "selected" : ""}>English (India)</option>
-            <option value="ta" ${(localStorage.getItem("hearth_voice_language")||"")==="ta" ? "selected" : ""}>தமிழ் (Tamil)</option>
-          </select>
-        </label>
-        <button class="button primary" style="margin-top:12px;">${tr("save")}</button>
-      </form>
-    </section>
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line, rgba(255,255,255,0.08));">
+        <h4>${tr("aboutApp")}</h4>
+        <p class="small muted">${tx("installedVersion", { version: CURRENT_APP_VERSION })}</p>
+        <p class="small muted">${tr("updateHelp")}</p>
+        <button class="button soft" type="button" data-action="check-app-update">${tr("checkUpdates")}</button>
+      </div>
 
-    <section class="panel">
-      <h3>${tr("aboutApp")}</h3>
-      <p class="small muted">${tx("installedVersion", { version: CURRENT_APP_VERSION })}</p>
-      <p class="small muted">${tr("updateHelp")}</p>
-      <button class="button soft" type="button" data-action="check-app-update">${tr("checkUpdates")}</button>
+      <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+        <button class="button danger" style="width:100%;" data-action="signout">${tr("signOut")}</button>
+        <button class="button soft" style="width:100%; color:var(--danger, #ef4444);" data-action="delete-account">${tr("deleteAccount")}</button>
+      </div>
     </section>
-
-    <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-      <button class="button danger" style="width:100%;" data-action="signout">${tr("signOut")}</button>
-      <button class="button soft" style="width:100%; color:var(--danger, #ef4444);" data-action="delete-account">${tr("deleteAccount")}</button>
-    </div>
   `;
 }
 
@@ -1802,11 +2154,10 @@ async function refreshRoom() {
     state.client.from("rooms").select("*").eq("household_id", roomId).order("created_at"),
     state.client.from("custom_categories").select("*").eq("household_id", roomId),
     state.client.from("payment_methods").select("*").eq("household_id", roomId),
-    state.client.from("spending_alerts").select("*").eq("household_id", roomId),
-    state.client.from("household_member_aliases").select("*").eq("household_id", roomId).order("created_at")
+    state.client.from("spending_alerts").select("*").eq("household_id", roomId)
   ]);
 
-  const [expRes, budRes, billRes, shopRes, goalRes, contRes, settRes, actRes, profRes, roomsRes, custCatRes, payMethRes, alertRes, aliasRes] = queries;
+  const [expRes, budRes, billRes, shopRes, goalRes, contRes, settRes, actRes, profRes, roomsRes, custCatRes, payMethRes, alertRes] = queries;
 
   const expenses = queryRows(expRes, "expenses");
   const budgets = queryRows(budRes, "budgets");
@@ -1821,7 +2172,6 @@ async function refreshRoom() {
   const customCategories = queryRows(custCatRes, "custom categories", true);
   const paymentMethods = queryRows(payMethRes, "payment methods", true);
   const spendingAlerts = queryRows(alertRes, "spending alerts", true);
-  const memberAliases = queryRows(aliasRes, "member aliases", true);
 
   if (state.room?.id !== roomId) return;
 
@@ -1845,7 +2195,6 @@ async function refreshRoom() {
   state.customCategories = customCategories;
   state.paymentMethods = paymentMethods;
   state.spendingAlerts = spendingAlerts;
-  state.memberAliases = memberAliases;
 
   render();
 }
@@ -1908,7 +2257,7 @@ function subscribeRealtime() {
     "expenses", "category_budgets", "recurring_bills", "shopping_items",
     "savings_goals", "savings_contributions", "settlements", "activity_events",
     "household_members", "rooms", "custom_categories", "payment_methods",
-    "spending_alerts", "household_member_aliases"
+    "spending_alerts"
   ];
   const queueRefresh = reloadHouseholds => {
     clearTimeout(state.realtimeRefreshTimer);
@@ -2011,7 +2360,7 @@ function expenseForm({
   fingerprint = "",
   voiceMessage = "",
   paid_by = state.user?.id,
-  funding = "shared",
+  funding = (localStorage.getItem("hearth_default_payment_source") === "SHARED_HOUSEHOLD" ? "shared" : "personal"),
   room_id = "",
   payment_method = "cash",
   notes = ""
@@ -2401,7 +2750,6 @@ function renderVoiceFeedback(session) {
     if (textToParse) {
       const parsed = parseVoiceTranscript(textToParse, {
         members: state.members,
-        memberAliases: state.memberAliases || [],
         currentUserId: state.user?.id
       });
       const items = parsed.expenses?.length ? parsed.expenses : (parsed.amount || parsed.description ? [parsed] : []);
@@ -2624,9 +2972,9 @@ async function applyVoiceResult(session) {
           transcript,
           household_id: state.room?.id,
           members: state.members,
-          aliases: state.memberAliases || [],
           customCategories: state.customCategories || [],
-          language: session?.language || localStorage.getItem("hearth_voice_language") || "en"
+          language: session?.language || localStorage.getItem("hearth_voice_language") || "en",
+          today: today()
         }),
         signal: AbortSignal.timeout(10000)
       });
@@ -2646,7 +2994,6 @@ async function applyVoiceResult(session) {
   if (!extractedExpenses || extractedExpenses.length === 0) {
     const localDraft = parseVoiceTranscript(transcript, {
       members: state.members,
-      memberAliases: state.memberAliases || [],
       currentUserId: state.user?.id
     });
     extractedExpenses = localDraft.expenses || [];
@@ -2772,14 +3119,14 @@ function showVoiceReviewForm({ transcript, expenses = [], isAi = false }) {
             const r = await fetch(`${state.client.supabaseUrl}/functions/v1/parse-expense-ai`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${authSession.access_token}` },
-              body: JSON.stringify({ transcript: newT, household_id: state.room?.id, members: state.members, aliases: state.memberAliases || [], customCategories: state.customCategories || [], language: localStorage.getItem("hearth_voice_language") || "en" }),
+              body: JSON.stringify({ transcript: newT, household_id: state.room?.id, members: state.members, customCategories: state.customCategories || [], language: localStorage.getItem("hearth_voice_language") || "en", today: today() }),
               signal: AbortSignal.timeout(10000)
             });
             if (r.ok) { const p = await r.json(); if (Array.isArray(p.expenses) && p.expenses.length) { reparsed = p.expenses; reparsedAi = true; } }
           }
         } catch {}
         if (!reparsed) {
-          const local = parseVoiceTranscript(newT, { members: state.members, memberAliases: state.memberAliases || [], currentUserId: state.user?.id });
+          const local = parseVoiceTranscript(newT, { members: state.members, currentUserId: state.user?.id });
           reparsed = local.expenses?.length ? local.expenses : (local.amount ? [local] : []);
         }
         if (reparsed?.length) { isAi = reparsedAi; currentExpenses = reparsed.map(e => ({ ...e })); }
@@ -3419,23 +3766,6 @@ async function handleForm(event) {
       break;
     }
 
-    case "add-voice-alias": {
-      const aliasText = value("alias")?.trim().toLowerCase();
-      const memberId = value("alias_member");
-      if (!aliasText) { flash(tr("voiceNicknameEmpty"), "warn"); break; }
-      if (!memberId) { flash("Select a household member.", "warn"); break; }
-      const { error } = await state.client.from("household_member_aliases").insert({
-        household_id: state.room.id,
-        user_id: memberId,
-        alias: aliasText,
-        created_by: state.user.id
-      });
-      if (error) throw error;
-      await refreshRoom();
-      flash(tr("voiceNicknameAdded"));
-      break;
-    }
-
     case "profile": {
       const { error } = await state.client.from("user_profiles").upsert({
         user_id: state.user.id,
@@ -3447,6 +3777,8 @@ async function handleForm(event) {
       state.profile = { ...state.profile, display_name: value("display_name"), language: value("language") };
       const vl = value("voice_language");
       if (vl) localStorage.setItem("hearth_voice_language", vl);
+      const dps = value("default_payment_source");
+      if (dps) localStorage.setItem("hearth_default_payment_source", dps);
       await refreshRoom();
       flash("Preferences saved.");
       break;
@@ -3559,22 +3891,51 @@ async function handleAction(button) {
       }
       break;
 
-    case "fill-alias": {
-      const aliasInput = document.querySelector('form[data-form="add-voice-alias"] input[name="alias"]');
-      if (aliasInput) {
-        aliasInput.value = button.dataset.value;
-        aliasInput.focus();
+    case "dismiss-insight": {
+      const insightId = button.dataset.id;
+      if (!insightId) break;
+      const storageKey = `hearth_dismissed_insights_${state.room?.id || "default"}`;
+      let dismissed = [];
+      try { dismissed = JSON.parse(localStorage.getItem(storageKey) || "[]"); } catch {}
+      if (!dismissed.includes(insightId)) {
+        dismissed.push(insightId);
+        localStorage.setItem(storageKey, JSON.stringify(dismissed));
       }
+      render();
       break;
     }
 
-    case "delete-voice-alias": {
-      const aliasId = id;
-      if (!aliasId) break;
-      const { error } = await state.client.from("household_member_aliases").delete().eq("id", aliasId);
+    case "clear-insights": {
+      confirmDestructive({
+        title: "Clear Insight Cards?",
+        message: "This will dismiss and clear the current smart insight cards from view. Your underlying recorded expenses, budgets, and transactions are permanent and will NOT be deleted.",
+        confirmLabel: "Clear Cards",
+        onConfirm: async () => {
+          const storageKey = `hearth_dismissed_insights_${state.room?.id || "default"}`;
+          const allIds = ["top-cat-share", "daily-pace", "funding-split", "month-change", "peak-transaction"];
+          localStorage.setItem(storageKey, JSON.stringify(allIds));
+          render();
+          flash("Insight cards cleared.");
+        }
+      });
+      break;
+    }
+
+    case "reset-dismissed-insights": {
+      const storageKey = `hearth_dismissed_insights_${state.room?.id || "default"}`;
+      localStorage.removeItem(storageKey);
+      render();
+      flash("Insight cards restored.");
+      break;
+    }
+
+    case "delete-spending-alert": {
+      const alertId = id;
+      if (!alertId) break;
+      const { error } = await state.client.from("spending_alerts").update({ deleted_at: new Date().toISOString() }).eq("id", alertId);
       if (error) throw error;
       await refreshRoom();
-      flash(tr("voiceNicknameDeleted"));
+      flash("Spending alert removed.");
       break;
     }
 
