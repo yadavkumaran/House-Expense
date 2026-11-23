@@ -379,6 +379,15 @@ const BUILTIN_PAYMENT_METHODS = [
 const NAV = [
   ["home", "home"], ["ledger", "list"], ["insights", "pie"], ["household", "home-gear"], ["more", "dots"]
 ];
+const NAV_TABS = NAV.map(([page]) => page);
+
+function navigateToPage(targetPage) {
+  if (!targetPage || state.page === targetPage) return;
+  state.animatePage = true;
+  state.page = targetPage;
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
 const state = {
   client: null,
@@ -1063,30 +1072,6 @@ function alertRows() {
         title: `Spending Alert: ${alertDef.title}`,
         detail: `Spent ${money(spent)} exceeding threshold of ${money(alertDef.threshold_amount)}.`,
         rows: matchingExpenses.slice(0, 3)
-      });
-    }
-  }
-
-  // Duplicate checks within 14 days
-  for (const expense of thisMonth) {
-    const earlier = state.expenses.filter(other =>
-      !other.deleted_at &&
-      other.id !== expense.id &&
-      (other.created_at < expense.created_at || (other.created_at === expense.created_at && String(other.id) < String(expense.id))) &&
-      other.category === expense.category &&
-      Number(other.amount) === Number(expense.amount) &&
-      other.description.trim().toLowerCase() === expense.description.trim().toLowerCase() &&
-      Math.abs(Date.parse(`${other.occurred_on}T00:00:00`) - Date.parse(`${expense.occurred_on}T00:00:00`)) <= 14 * 86400000
-    );
-    if (earlier.length) {
-      alerts.push({
-        level: "warn",
-        title: tr("duplicateTitle"),
-        detail: tx("duplicateDetail", {
-          amount: money(expense.amount), category: categoryName(expense.category),
-          description: expense.description, date: dateLabel(expense.occurred_on)
-        }),
-        rows: [expense, ...earlier.slice(0, 2)]
       });
     }
   }
@@ -3164,7 +3149,7 @@ function showVoiceReviewForm({ transcript, expenses = [], isAi = false }) {
             occurred_on: fv(`date_${idx}`) || today(),
             paid_by: fv(`paid_by_${idx}`) || state.user?.id,
             funding: fundingVal,
-            notes: fv(`notes_${idx}`) || null
+            notes: (fv(`notes_${idx}`) || "").trim()
           };
         });
 
@@ -3447,7 +3432,7 @@ function showAddSpendingAlert() {
 }
 
 // CSV EXPORT
-function downloadCsv() {
+async function downloadCsv() {
   const fields = ["occurred_on", "description", "category", "amount", "paid_by", "funding", "room", "payment_method", "notes", "source"];
   const rows = [fields, ...state.expenses.filter(e => !e.deleted_at).map(e => [
     e.occurred_on,
@@ -3468,12 +3453,53 @@ function downloadCsv() {
     return `"${safe.replaceAll('"', '""')}"`;
   }).join(",")).join("\r\n");
 
-  const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `hearth-${state.room.name.replace(/[^a-z0-9-]/gi, "-")}-${today()}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const filename = `hearth-${(state.room?.name || "expenses").replace(/[^a-z0-9-]/gi, "-")}-${today()}.csv`;
+
+  // 1. Native Android export bridge (Capacitor)
+  if (window.HearthNativeSpeech?.exportCsv) {
+    try {
+      window.HearthNativeSpeech.exportCsv(filename, "\ufeff" + csv);
+      flash(tr("downloadStarted") || "Exporting CSV…");
+      return;
+    } catch (e) {
+      console.warn("Native CSV export failed, falling back", e);
+    }
+  }
+
+  const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+
+  // 2. Mobile Web Share API
+  if (navigator.canShare) {
+    try {
+      const file = new File([blob], filename, { type: "text/csv" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: filename
+        });
+        flash(tr("downloadStarted") || "CSV ready.");
+        return;
+      }
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      console.warn("Navigator share failed, falling back to download link", err);
+    }
+  }
+
+  // 3. Desktop / Standard browser anchor download
+  try {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    flash(tr("downloadStarted") || "CSV download started.");
+  } catch (err) {
+    showError(err);
+  }
 }
 
 // FORM SUBMISSIONS HANDLER
@@ -3817,10 +3843,7 @@ async function handleAction(button) {
 
   switch (action) {
     case "navigate":
-      state.animatePage = state.page !== button.dataset.value;
-      state.page = button.dataset.value;
-      render();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      navigateToPage(button.dataset.value);
       break;
 
     case "check-app-update": {
@@ -4671,6 +4694,51 @@ for (const preference of [colorSchemePreference, reducedMotionPreference]) {
 }
 
 window.addEventListener("pagehide", closeModal);
+
+// SWIPE NAVIGATION BETWEEN BOTTOM TABS
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+
+document.addEventListener("touchstart", event => {
+  if (event.touches.length === 1) {
+    touchStartX = event.touches[0].clientX;
+    touchStartY = event.touches[0].clientY;
+    touchStartTime = Date.now();
+  }
+}, { passive: true });
+
+document.addEventListener("touchend", event => {
+  if (!state.user || !state.room) return;
+  if (modalRoot.firstElementChild || document.querySelector(".voice-sheet") || !event.changedTouches.length) {
+    return;
+  }
+  const target = event.target;
+  if (target && target.closest("input, textarea, select, .filter-bar, .segmented, .date-picker-input, button, [contenteditable]")) {
+    return;
+  }
+
+  const touchEndX = event.changedTouches[0].clientX;
+  const touchEndY = event.changedTouches[0].clientY;
+  const dx = touchEndX - touchStartX;
+  const dy = touchEndY - touchStartY;
+  const dt = Date.now() - touchStartTime;
+
+  // Swipe gesture: within 600ms, horizontal move >= 60px, horizontal movement > 1.4x vertical movement
+  if (dt <= 600 && Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+    const curTab = (state.page === "settings" ? "household" : state.page);
+    const curIdx = NAV_TABS.indexOf(curTab);
+    if (curIdx !== -1) {
+      if (dx < 0 && curIdx < NAV_TABS.length - 1) {
+        // Swipe Left -> next tab
+        navigateToPage(NAV_TABS[curIdx + 1]);
+      } else if (dx > 0 && curIdx > 0) {
+        // Swipe Right -> previous tab
+        navigateToPage(NAV_TABS[curIdx - 1]);
+      }
+    }
+  }
+}, { passive: true });
 
 start().catch(error => {
   showError(error);

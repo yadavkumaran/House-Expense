@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,6 +15,10 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import org.json.JSONObject;
 
@@ -177,6 +182,41 @@ public class HearthNativeSpeech {
     public void abort() {
         isAborting = true;
         mainHandler.post(this::destroyRecognizer);
+    }
+
+    @JavascriptInterface
+    public void exportCsv(String filename, String csvContent) {
+        mainHandler.post(() -> {
+            try {
+                File exportDir = new File(activity.getCacheDir(), "exports");
+                if (!exportDir.exists()) {
+                    exportDir.mkdirs();
+                }
+                String safeName = (filename != null && !filename.trim().isEmpty()) ? filename : "hearth-expenses.csv";
+                if (!safeName.toLowerCase().endsWith(".csv")) {
+                    safeName += ".csv";
+                }
+                File file = new File(exportDir, safeName);
+                try (FileOutputStream fos = new FileOutputStream(file)) {
+                    fos.write(csvContent.getBytes(StandardCharsets.UTF_8));
+                }
+
+                Uri contentUri = FileProvider.getUriForFile(
+                    activity,
+                    activity.getPackageName() + ".fileprovider",
+                    file
+                );
+
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("text/csv");
+                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+                shareIntent.putExtra(Intent.EXTRA_SUBJECT, safeName);
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                activity.startActivity(Intent.createChooser(shareIntent, "Save or Share CSV"));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void destroyRecognizer() {
