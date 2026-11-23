@@ -225,3 +225,39 @@ test("filters expenses by family member and payment source (PERSONAL & SHARED_HO
   assert.equal(shared.length, 2);
   assert.deepEqual(shared.map(e => e.id), ["e1", "e4"]);
 });
+
+test("gracefully falls back when remote database schema lacks payment_source column", async () => {
+  const attempts = [];
+  const fakeClient = {
+    from: (table) => ({
+      insert: async (rows) => {
+        attempts.push(rows);
+        // First attempt with payment_source fails with schema cache error
+        if (rows.some(r => "payment_source" in r)) {
+          return { error: { message: "Could not find the 'payment_source' column of 'expenses' in the schema cache", code: "PGRST204" } };
+        }
+        return { data: rows, error: null };
+      }
+    })
+  };
+
+  const baseRows = [
+    { household_id: "h1", amount: 60, category: "milk", description: "Milk", funding: "personal" }
+  ];
+  const enhancedRows = baseRows.map(r => ({
+    ...r,
+    payment_source: "PERSONAL"
+  }));
+
+  let { error } = await fakeClient.from("expenses").insert(enhancedRows);
+  if (error && (error.message?.includes("payment_source") || error.code === "PGRST204")) {
+    const retry = await fakeClient.from("expenses").insert(baseRows);
+    error = retry.error;
+  }
+
+  assert.equal(error, null);
+  assert.equal(attempts.length, 2);
+  assert.equal("payment_source" in attempts[0][0], true);
+  assert.equal("payment_source" in attempts[1][0], false);
+  assert.equal(attempts[1][0].funding, "personal");
+});

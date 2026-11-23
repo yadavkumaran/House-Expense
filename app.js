@@ -2175,7 +2175,10 @@ async function refreshRoom() {
 
   if (state.room?.id !== roomId) return;
 
-  state.expenses = expenses;
+  state.expenses = expenses.map(e => ({
+    ...e,
+    payment_source: e.payment_source || (e.funding === "shared" ? "SHARED_HOUSEHOLD" : "PERSONAL")
+  }));
   state.budgets = budgets;
   state.bills = bills;
   state.shopping = shopping;
@@ -3148,9 +3151,11 @@ function showVoiceReviewForm({ transcript, expenses = [], isAi = false }) {
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Saving\u2026"; }
       try {
         const fv = (n) => form.elements[n]?.value ?? "";
-        const rows = currentExpenses.map((_, idx) => {
+        const baseRows = currentExpenses.map((_, idx) => {
           const amount = parseFloat(fv(`amount_${idx}`));
           if (!amount || amount <= 0) throw new Error(`Item ${idx + 1}: Invalid amount.`);
+          const sourceVal = fv(`payment_source_${idx}`) || "PERSONAL";
+          const fundingVal = sourceVal === "SHARED_HOUSEHOLD" ? "shared" : "personal";
           return {
             household_id: state.room.id,
             amount,
@@ -3158,16 +3163,32 @@ function showVoiceReviewForm({ transcript, expenses = [], isAi = false }) {
             description: fv(`description_${idx}`) || "Expense",
             occurred_on: fv(`date_${idx}`) || today(),
             paid_by: fv(`paid_by_${idx}`) || state.user?.id,
-            payment_source: fv(`payment_source_${idx}`) || "PERSONAL",
-            funding: fv(`payment_source_${idx}`) === "SHARED_HOUSEHOLD" ? "shared" : "personal",
+            funding: fundingVal,
             notes: fv(`notes_${idx}`) || null
           };
         });
-        const { error } = await state.client.from("expenses").insert(rows);
+
+        // Try inserting with payment_source first (if schema migration was run)
+        const enhancedRows = baseRows.map((r, idx) => ({
+          ...r,
+          payment_source: fv(`payment_source_${idx}`) || (r.funding === "shared" ? "SHARED_HOUSEHOLD" : "PERSONAL")
+        }));
+
+        let { error } = await state.client.from("expenses").insert(enhancedRows);
+        if (error && (
+          error.message?.includes("payment_source") ||
+          error.message?.includes("schema cache") ||
+          error.code === "PGRST204" ||
+          error.details?.includes("payment_source")
+        )) {
+          console.warn("Database schema lacks payment_source column, falling back to standard funding column.");
+          const retry = await state.client.from("expenses").insert(baseRows);
+          error = retry.error;
+        }
         if (error) throw error;
         closeModal();
         await refreshRoom();
-        flash(rows.length === 1 ? "Expense saved from voice." : `${rows.length} expenses saved from voice.`);
+        flash(baseRows.length === 1 ? "Expense saved from voice." : `${baseRows.length} expenses saved from voice.`);
       } catch (err) {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = `Save${currentExpenses.length > 1 ? ` ${currentExpenses.length} Expenses` : " Expense"}`; }
         showError(err);
