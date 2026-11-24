@@ -1,5 +1,6 @@
 import { cleanExpenseDescription, diagnoseTranscriptionEndpoint, parseVoiceTranscript, transcriptionFailureKey } from "./voice.js";
 import { localMonthKey, renderExpenseCalendar } from "./calendar-feature/calendar.js";
+import { icons } from "./icons.js";
 import {
   toMinorUnits,
   fromMinorUnits,
@@ -630,25 +631,17 @@ function renderOnboarding() {
 }
 
 function renderNav() {
-  const icons = {
-    home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-    list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
-    pie: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`,
-    "home-gear": `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-    dots: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>`
-  };
-
   return `
     <nav class="nav" aria-label="Main navigation">
       ${NAV.map(([page, iconKey]) => `
         <button type="button" class="${(state.page === page || (page === "household" && state.page === "settings")) ? "on" : ""}" data-action="navigate" data-value="${page}" aria-current="${state.page === page ? "page" : "false"}">
-          <span class="nav-icon" aria-hidden="true">${icons[iconKey]}</span>
+          <span class="nav-icon" aria-hidden="true">${icons[iconKey] ? icons[iconKey]({ size: 22 }) : ""}</span>
           <span>${esc(tr(page))}</span>
         </button>
       `).join("")}
     </nav>
     <button class="fab no-print" aria-label="${tr("addExpense")}" data-action="expense">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      ${icons.plus({ size: 24, strokeWidth: 2.2 })}
     </button>
   `;
 }
@@ -3166,22 +3159,28 @@ function showVoiceReviewForm({ transcript, expenses = [], isAi = false }) {
           };
         });
 
-        // Try inserting with payment_source first (if schema migration was run)
-        const enhancedRows = baseRows.map((r, idx) => ({
-          ...r,
-          payment_source: fv(`payment_source_${idx}`) || (r.funding === "shared" ? "SHARED_HOUSEHOLD" : "PERSONAL")
-        }));
-
-        let { error } = await state.client.from("expenses").insert(enhancedRows);
-        if (error && (
-          error.message?.includes("payment_source") ||
-          error.message?.includes("schema cache") ||
-          error.code === "PGRST204" ||
-          error.details?.includes("payment_source")
-        )) {
-          console.warn("Database schema lacks payment_source column, falling back to standard funding column.");
-          const retry = await state.client.from("expenses").insert(baseRows);
-          error = retry.error;
+        let error = null;
+        if (state.schemaHasPaymentSource !== false) {
+          const enhancedRows = baseRows.map((r, idx) => ({
+            ...r,
+            payment_source: fv(`payment_source_${idx}`) || (r.funding === "shared" ? "SHARED_HOUSEHOLD" : "PERSONAL")
+          }));
+          const res = await state.client.from("expenses").insert(enhancedRows);
+          error = res.error;
+          if (error && (
+            error.message?.includes("payment_source") ||
+            error.message?.includes("schema cache") ||
+            error.code === "PGRST204" ||
+            error.details?.includes("payment_source")
+          )) {
+            state.schemaHasPaymentSource = false;
+            console.warn("Database schema lacks payment_source column, falling back to standard funding column.");
+            const retry = await state.client.from("expenses").insert(baseRows);
+            error = retry.error;
+          }
+        } else {
+          const res = await state.client.from("expenses").insert(baseRows);
+          error = res.error;
         }
         if (error) throw error;
         closeModal();

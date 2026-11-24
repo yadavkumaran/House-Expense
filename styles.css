@@ -1,38 +1,52 @@
 :root {
   color-scheme: light;
-  --bg: #f8fafc;
+  --bg: #fbfbfa;
+  --hearth-bg: #fbfbfa;
   --surface: #ffffff;
+  --hearth-surface: #ffffff;
   --surface-raised: #ffffff;
-  --tint: #f1f5f9;
-  --tint-hover: #e2e8f0;
-  --ink: #0f172a;
-  --ink-secondary: #334155;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --line-strong: #cbd5e1;
-  --hero: #0b1329;
-  --hero-surface: #131f3d;
-  --hero-ink: #f8fafc;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: #eff6ff;
-  --accent-tint: #dbeafe;
+  --tint: #f4f4f0;
+  --hearth-surface-subtle: #f4f4f0;
+  --tint-hover: #eaeae5;
+  --ink: #18181b;
+  --hearth-text: #18181b;
+  --ink-secondary: #3f3f46;
+  --muted: #71717a;
+  --hearth-text-muted: #71717a;
+  --hearth-text-subtle: #a1a1aa;
+  --line: rgba(24, 24, 27, 0.08);
+  --hearth-border: rgba(24, 24, 27, 0.08);
+  --line-strong: rgba(24, 24, 27, 0.15);
+  --hero: #18181b;
+  --hero-surface: #27272a;
+  --hero-ink: #fafafa;
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  --accent-soft: #fef3c7;
+  --accent-tint: #fde68a;
   --hearth: #d97706;
   --hearth-soft: #fef3c7;
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --danger-soft: #fef2f2;
-  --success: #16a34a;
-  --success-soft: #f0fdf4;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
-  --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
-  --shadow-xl: 0 20px 35px -10px rgba(15, 23, 42, 0.15);
-  font-family: "Instrument Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --danger: #e11d48;
+  --danger-hover: #be123c;
+  --danger-soft: #ffe4e6;
+  --success: #059669;
+  --success-soft: #d1fae5;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 9999px;
+  --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --elevation-2: 0 4px 12px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+  --elevation-3: 0 20px 40px -12px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.15);
+  --shadow-sm: var(--elevation-1);
+  --shadow-md: var(--elevation-2);
+  --shadow-lg: var(--elevation-3);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+  --motion-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
+  --motion-normal: 250ms cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-sheet: 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: "Inter", "Noto Sans Tamil", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--ink);
   padding-top: env(safe-area-inset-top, 0px);
@@ -41,34 +55,44 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #070c18;
-  --surface: #0f172a;
-  --surface-raised: #162036;
-  --tint: #1a253c;
-  --tint-hover: #22314e;
-  --ink: #f8fafc;
-  --ink-secondary: #cbd5e1;
-  --muted: #8e9db3;
+  --bg: #09090b;
+  --hearth-bg: #09090b;
+  --surface: #141417;
+  --hearth-surface: #141417;
+  --surface-raised: #1c1c21;
+  --tint: #1f1f26;
+  --hearth-surface-subtle: #1c1c21;
+  --tint-hover: #272730;
+  --ink: #fafafa;
+  --hearth-text: #fafafa;
+  --ink-secondary: #d4d4d8;
+  --muted: #a1a1aa;
+  --hearth-text-muted: #a1a1aa;
+  --hearth-text-subtle: #71717a;
   --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
-  --hero: #0a1124;
-  --hero-surface: #101c38;
-  --hero-ink: #f8fafc;
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-soft: rgba(59, 130, 246, 0.15);
-  --accent-tint: rgba(59, 130, 246, 0.25);
+  --hearth-border: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.15);
+  --hero: #141417;
+  --hero-surface: #1c1c21;
+  --hero-ink: #fafafa;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-soft: rgba(245, 158, 11, 0.15);
+  --accent-tint: rgba(245, 158, 11, 0.25);
   --hearth: #f59e0b;
   --hearth-soft: rgba(245, 158, 11, 0.15);
-  --danger: #ef4444;
-  --danger-hover: #f87171;
-  --danger-soft: rgba(239, 68, 68, 0.15);
-  --success: #22c55e;
-  --success-soft: rgba(34, 197, 94, 0.15);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.45);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.55);
+  --danger: #fb7185;
+  --danger-hover: #f43f5e;
+  --danger-soft: rgba(251, 113, 133, 0.15);
+  --success: #10b981;
+  --success-soft: rgba(16, 185, 129, 0.15);
+  --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --elevation-2: 0 4px 12px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+  --elevation-3: 0 20px 40px -12px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255, 255, 255, 0.1);
+  --shadow-sm: var(--elevation-1);
+  --shadow-md: var(--elevation-2);
+  --shadow-lg: var(--elevation-3);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
 }
 
 :root[data-accent="teal"] {
@@ -1249,5 +1273,358 @@ textarea.field {
 @media (prefers-reduced-motion: reduce) {
   .hearth-intro {
     display: none !important;
+  }
+}
+
+/* ==========================================================================
+   HEARTH PHASE 1 DESIGN SYSTEM — APPLE-INSPIRED FOUNDATION
+   ========================================================================== */
+
+/* 1. Numerical & Typographic Hierarchy */
+.tabular,
+.amount,
+.stat-value,
+.date,
+[data-tabular] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum" 1;
+}
+
+.amount {
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.hearth-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  transition: transform var(--motion-fast), opacity var(--motion-fast);
+}
+
+/* 2. Floating Action Island (Docked Bottom Center) */
+.hearth-action-island {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+  left: 50%;
+  transform: translateX(-50%) translateZ(0);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--hearth-surface);
+  border: 1px solid var(--hearth-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--elevation-3);
+  z-index: 95;
+  transition: transform var(--motion-normal), opacity var(--motion-normal);
+  will-change: transform;
+}
+
+.action-island-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform var(--motion-fast), background var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.action-island-btn:active {
+  transform: scale(0.95);
+}
+
+.action-island-btn.primary {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
+}
+
+:root[data-theme="dark"] .action-island-btn.primary {
+  background: var(--accent);
+  color: #141417;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25);
+}
+
+.action-island-btn.soft {
+  background: var(--tint);
+  color: var(--ink);
+}
+
+.action-island-btn.soft:hover {
+  background: var(--tint-hover);
+}
+
+.action-island-btn.voice-pulse {
+  position: relative;
+}
+
+.action-island-btn.voice-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--accent);
+  opacity: 0;
+  animation: islandPulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes islandPulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+/* 3. Account Switcher Segmented Control */
+.segmented-control {
+  display: inline-flex;
+  background: var(--hearth-surface-subtle);
+  border: 1px solid var(--hearth-border);
+  padding: 3px;
+  border-radius: var(--radius-full);
+  position: relative;
+  user-select: none;
+  max-width: 100%;
+}
+
+.segmented-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color var(--motion-fast), transform var(--motion-fast);
+  white-space: nowrap;
+}
+
+.segmented-item.active {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--hearth-surface);
+  box-shadow: var(--elevation-1);
+}
+
+.segmented-item:active {
+  transform: scale(0.97);
+}
+
+/* 4. Spring Bottom Sheet & Modal Primitive */
+.hearth-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-normal);
+}
+
+.hearth-sheet-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hearth-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--hearth-surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border-top: 1px solid var(--hearth-border);
+  box-shadow: var(--elevation-3);
+  padding: 12px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 1001;
+  transform: translateY(100%);
+  transition: transform var(--motion-sheet);
+  will-change: transform;
+}
+
+.hearth-sheet-backdrop.visible .hearth-sheet {
+  transform: translateY(0);
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--muted);
+  opacity: 0.35;
+  border-radius: var(--radius-full);
+  margin: 0 auto 16px;
+  cursor: grab;
+}
+
+/* 5. Numeric Keypad & Expense Input */
+.hero-amount-input-wrap {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.hero-currency-symbol {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.hero-amount-display {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  border: none;
+  background: transparent;
+  text-align: center;
+  width: auto;
+  min-width: 120px;
+  max-width: 280px;
+  outline: none;
+}
+
+/* 6. Refined Card Surfaces */
+.hearth-card {
+  background: var(--hearth-surface);
+  border: 1px solid var(--hearth-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--elevation-1);
+  transition: transform var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.hearth-card-hero {
+  background: linear-gradient(180deg, var(--hearth-surface) 0%, var(--hearth-surface-subtle) 100%);
+  border: 1px solid var(--hearth-border);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  box-shadow: var(--elevation-2);
+}
+
+/* 7. Pacing Progress Track */
+.pacing-track {
+  height: 6px;
+  width: 100%;
+  background: var(--tint);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+
+.pacing-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 400ms var(--motion-normal);
+}
+
+.pacing-fill.warning {
+  background: var(--danger);
+}
+
+/* 8. Desktop Responsive Layout (Multi-column view) */
+@media (min-width: 860px) {
+  .hearth-shell {
+    display: flex;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    gap: 32px;
+  }
+
+  .nav {
+    position: sticky;
+    top: 24px;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    width: 220px;
+    height: auto;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    background: transparent;
+    border: none;
+    padding: 0;
+    gap: 6px;
+    box-shadow: none;
+    z-index: 10;
+  }
+
+  .nav button {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .nav button.on {
+    background: var(--hearth-surface);
+    box-shadow: var(--elevation-1);
+  }
+
+  .nav button .nav-icon {
+    font-size: 18px;
+  }
+
+  .hearth-action-island {
+    bottom: 32px;
+    left: calc(50% + 110px);
+  }
+
+  .hearth-sheet {
+    max-width: 520px;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    transform: translate(-50%, -46%) scale(0.96);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--hearth-border);
+    opacity: 0;
+    transition: transform var(--motion-sheet), opacity var(--motion-normal);
+  }
+
+  .hearth-sheet-backdrop.visible .hearth-sheet {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+
+  .sheet-handle {
+    display: none;
+  }
+}
+
+/* 9. Accessibility — Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .hearth-sheet {
+    transition: opacity 100ms ease !important;
   }
 }

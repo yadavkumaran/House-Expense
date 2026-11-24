@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fbfbfa">
+  <title>Hearth — Phase 1 Design Foundation Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    /* Preview Host Toolbar */
+    .preview-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 9999;
+      background: var(--hearth-surface);
+      border-bottom: 1px solid var(--hearth-border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      box-shadow: var(--elevation-1);
+    }
+    .preview-badge {
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 11px;
+      padding: 3px 8px;
+      background: var(--tint);
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+    }
+    .preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .preview-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--hearth-border);
+      background: var(--hearth-surface);
+      color: var(--ink);
+      cursor: pointer;
+      transition: background var(--motion-fast);
+    }
+    .preview-btn:hover {
+      background: var(--tint);
+    }
+    .preview-btn.active {
+      background: var(--ink);
+      color: var(--bg);
+      border-color: var(--ink);
+    }
+    /* Simulated Mobile Frame Option */
+    .device-viewport-frame {
+      max-width: 430px;
+      margin: 20px auto 100px;
+      border-radius: 40px;
+      border: 8px solid var(--ink);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+      overflow: hidden;
+      min-height: 840px;
+      background: var(--hearth-bg);
+      position: relative;
+    }
+    .device-viewport-frame.desktop-mode {
+      max-width: 1100px;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      margin: 0 auto;
+      min-height: auto;
+    }
+    /* Insight Alert Animation */
+    .insight-card {
+      transition: opacity 250ms var(--motion-normal), transform 250ms var(--motion-normal), height 250ms var(--motion-normal);
+    }
+    .insight-card.dismissed {
+      opacity: 0;
+      transform: translateX(30px);
+      height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin-top: 0;
+      margin-bottom: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Preview Evaluation Toolbar -->
+  <aside class="preview-toolbar" aria-label="Evaluation Tools">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="preview-badge">Phase 1 Preview</span>
+      <span style="font-weight:600;">Hearth Design Foundation</span>
+    </div>
+    <div class="preview-controls">
+      <button id="toggle-theme" class="preview-btn" type="button">
+        <span id="theme-icon">🌙</span> <span id="theme-label">Dark Mode</span>
+      </button>
+      <button id="toggle-lang" class="preview-btn" type="button">
+        <span>🌐</span> <span id="lang-label">தமிழ் (Tamil)</span>
+      </button>
+      <button id="toggle-viewport" class="preview-btn" type="button">
+        <span>📱</span> <span id="viewport-label">Expand Desktop</span>
+      </button>
+      <button id="toggle-motion" class="preview-btn" type="button">
+        <span>⚡</span> <span id="motion-label">Reduced Motion: Off</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Viewport Container -->
+  <div id="device-frame" class="device-viewport-frame">
+    
+    <div class="hearth-shell" style="padding-bottom: 120px;">
+      
+      <!-- Top Persistent Header -->
+      <header class="top" style="margin-bottom: 16px;">
+        <div>
+          <div class="brand-chip" style="display:inline-flex; align-items:center; gap:6px;">
+            <img class="brand-mark" src="./icons/hearth-mark.png" alt="Hearth" style="width:16px; height:16px;">
+            <span id="household-name">Kumaran Household</span>
+            <span style="color:var(--muted); font-size:12px;">· 4 members</span>
+          </div>
+          <h1 id="page-title" class="hd" style="margin-top:4px;">Home</h1>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div style="width:34px; height:34px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:700; font-size:13px; box-shadow:var(--elevation-1);">
+            K
+          </div>
+        </div>
+      </header>
+
+      <!-- Account Switcher Segmented Control -->
+      <div style="margin-bottom: 16px;">
+        <div class="segmented-control" role="tablist">
+          <button id="tab-shared" class="segmented-item active" role="tab" aria-selected="true" type="button">
+            <span id="tab-shared-icon"></span>
+            <span id="txt-shared">Shared Household</span>
+          </button>
+          <button id="tab-personal" class="segmented-item" role="tab" aria-selected="false" type="button">
+            <span id="tab-personal-icon"></span>
+            <span id="txt-personal">Personal Pocket</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Financial Hero Card -->
+      <section class="hearth-card-hero" style="margin-bottom: 16px;">
+        <div class="between" style="margin-bottom: 4px;">
+          <span id="txt-spent-label" class="muted small" style="font-weight:500;">Spent this month (November)</span>
+          <span class="tag small neutral" style="font-weight:600;">+4% vs last month</span>
+        </div>
+        <div id="hero-amount" class="amount" style="font-size:38px; line-height:1.15; margin:6px 0 10px;">₹42,850.00</div>
+        
+        <!-- Pacing Track Indicator -->
+        <div class="between small tabular" style="color:var(--muted);">
+          <span id="txt-pacing-status">Budget pacing: On track</span>
+          <span><strong>₹42,850</strong> / ₹60,000</span>
+        </div>
+        <div class="pacing-track" role="progressbar" aria-valuenow="71" aria-valuemin="0" aria-valuemax="100">
+          <div class="pacing-fill" style="width: 71%;"></div>
+        </div>
+        <div class="between tiny muted tabular" style="margin-top: 4px;">
+          <span>Day 24 of 30</span>
+          <span>₹17,150 remaining</span>
+        </div>
+
+        <!-- Household Members Contribution Stream -->
+        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hearth-border); display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex;">
+              <span style="width:22px; height:22px; border-radius:50%; background:#2563eb; color:#fff; display:grid; place-items:center; font-size:10px; font-weight:700; border:2px solid var(--hearth-surface);">K</span>
+              <span style="width:22px; height:22px; border-radius:50%; background:#059669; color:#fff; display:grid; place-items:center; font-size:10px; font-weight:700; margin-left:-6px; border:2px solid var(--hearth-surface);">D</span>
+              <span style="width:22px; height:22px; border-radius:50%; background:#7c3aed; color:#fff; display:grid; place-items:center; font-size:10px; font-weight:700; margin-left:-6px; border:2px solid var(--hearth-surface);">A</span>
+            </div>
+            <span class="tiny muted" id="txt-members-summary">Kavi (₹24.5k), Dad (₹12k), Amma (₹6.3k)</span>
+          </div>
+          <span class="tag small" style="background:var(--accent-soft); color:var(--accent); font-weight:600; cursor:pointer;" id="btn-settle-peek">
+            ₹3,450 Owed ›
+          </span>
+        </div>
+      </section>
+
+      <!-- Dismissible Insights Banner -->
+      <section id="insight-alert" class="hearth-card insight-card" style="margin-bottom: 16px; border-left: 3px solid var(--accent);">
+        <div class="between" style="align-items:flex-start;">
+          <div style="display:flex; gap:10px;">
+            <div id="icon-insight-sparkle" style="color:var(--accent); margin-top:2px;"></div>
+            <div>
+              <div id="txt-insight-title" style="font-weight:600; font-size:14px;">Unusual Grocery Spike</div>
+              <div id="txt-insight-desc" class="small muted" style="margin-top:2px;">Grocery spending is 28% higher than usual for this time of the month.</div>
+            </div>
+          </div>
+          <button id="btn-dismiss-insight" type="button" class="button sm soft" style="padding:2px 8px; font-size:11px;" title="Dismiss this insight without deleting records">
+            Dismiss
+          </button>
+        </div>
+      </section>
+
+      <!-- Recent Transactions List -->
+      <section style="margin-bottom: 24px;">
+        <div class="between" style="margin-bottom: 10px;">
+          <h2 id="txt-recent-title" style="font-size:16px; font-weight:600; margin:0;">Recent Transactions</h2>
+          <span class="small muted" style="cursor:pointer;" id="txt-see-all">See All ›</span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;" id="transaction-feed">
+          <!-- Item 1 -->
+          <div class="hearth-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div id="icon-cart" style="width:36px; height:36px; border-radius:10px; background:var(--tint); display:grid; place-items:center; color:var(--ink);"></div>
+              <div>
+                <div style="font-weight:600; font-size:14px;">Organic Milk & Vegetables</div>
+                <div class="tiny muted" style="margin-top:2px;">Today · Paid by Kavi · <span style="color:var(--accent); font-weight:600;">Personal Pocket</span></div>
+              </div>
+            </div>
+            <div class="tabular amount" style="font-size:15px; font-weight:600;">₹420.00</div>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="hearth-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div id="icon-bolt" style="width:36px; height:36px; border-radius:10px; background:var(--tint); display:grid; place-items:center; color:var(--ink);"></div>
+              <div>
+                <div style="font-weight:600; font-size:14px;">Electricity Bill (TNEB)</div>
+                <div class="tiny muted" style="margin-top:2px;">Yesterday · Paid by Dad · <span style="color:var(--success); font-weight:600;">Shared Household</span></div>
+              </div>
+            </div>
+            <div class="tabular amount" style="font-size:15px; font-weight:600;">₹2,180.00</div>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="hearth-card" style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div id="icon-dining" style="width:36px; height:36px; border-radius:10px; background:var(--tint); display:grid; place-items:center; color:var(--ink);"></div>
+              <div>
+                <div style="font-weight:600; font-size:14px;">Weekend Family Dinner</div>
+                <div class="tiny muted" style="margin-top:2px;">Nov 21 · Paid by Amma · <span style="color:var(--success); font-weight:600;">Shared Household</span></div>
+              </div>
+            </div>
+            <div class="tabular amount" style="font-size:15px; font-weight:600;">₹1,850.00</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Floating Action Island (Docked bottom center) -->
+    <div class="hearth-action-island" role="toolbar" aria-label="Quick Actions">
+      <button id="btn-voice-island" class="action-island-btn soft voice-pulse" type="button" aria-label="Voice expense entry">
+        <span id="island-mic-icon"></span>
+        <span id="txt-island-voice">Voice</span>
+      </button>
+      <button id="btn-add-island" class="action-island-btn primary" type="button" aria-label="Add expense">
+        <span id="island-plus-icon"></span>
+        <span id="txt-island-add">Add Expense</span>
+      </button>
+    </div>
+
+    <!-- Bottom Navigation Bar (Persistent) -->
+    <nav class="nav" aria-label="Main Navigation">
+      <button type="button" class="on" data-tab="home" aria-current="page">
+        <span class="nav-icon" id="nav-icon-home"></span>
+        <span id="nav-txt-home">Home</span>
+      </button>
+      <button type="button" data-tab="ledger">
+        <span class="nav-icon" id="nav-icon-ledger"></span>
+        <span id="nav-txt-ledger">Transactions</span>
+      </button>
+      <button type="button" data-tab="insights">
+        <span class="nav-icon" id="nav-icon-insights"></span>
+        <span id="nav-txt-insights">Insights</span>
+      </button>
+      <button type="button" data-tab="household">
+        <span class="nav-icon" id="nav-icon-household"></span>
+        <span id="nav-txt-household">Household</span>
+      </button>
+      <button type="button" data-tab="settings">
+        <span class="nav-icon" id="nav-icon-settings"></span>
+        <span id="nav-txt-settings">Settings</span>
+      </button>
+    </nav>
+
+    <!-- Spring Bottom Sheet (Add Expense) -->
+    <div id="expense-sheet-backdrop" class="hearth-sheet-backdrop" aria-hidden="true">
+      <div class="hearth-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+        <div class="sheet-handle"></div>
+        
+        <div class="between" style="margin-bottom:12px;">
+          <h2 id="sheet-title" style="font-size:18px; font-weight:700; margin:0;">New Expense</h2>
+          <button id="btn-close-sheet" class="button sm soft" type="button" style="border-radius:50%; width:30px; height:30px; padding:0; display:grid; place-items:center;">
+            ✕
+          </button>
+        </div>
+
+        <!-- Hero Numeral Input -->
+        <div class="hero-amount-input-wrap">
+          <span class="hero-currency-symbol">₹</span>
+          <input id="sheet-amount-input" class="hero-amount-display" type="text" inputmode="decimal" value="0" placeholder="0">
+        </div>
+
+        <!-- Description Input -->
+        <div style="margin-bottom:16px;">
+          <label class="field-label" id="lbl-sheet-desc" style="font-size:12px; margin-bottom:4px;">Description</label>
+          <input id="sheet-desc-input" class="field" type="text" placeholder="e.g. Fresh Vegetables, Milk" style="font-size:14px;">
+        </div>
+
+        <!-- Funding Source Selection (Personal vs Shared) -->
+        <div style="margin-bottom:16px;">
+          <label class="field-label" id="lbl-sheet-funding" style="font-size:12px; margin-bottom:4px;">Money Used</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <button id="btn-fund-personal" type="button" class="button sm primary" style="justify-content:center; gap:6px;">
+              <span id="icon-pocket-fund"></span>
+              <span id="txt-fund-personal">Personal Pocket</span>
+            </button>
+            <button id="btn-fund-shared" type="button" class="button sm soft" style="justify-content:center; gap:6px;">
+              <span id="icon-shared-fund"></span>
+              <span id="txt-fund-shared">Shared Fund</span>
+            </button>
+          </div>
+          <div class="tiny muted" id="txt-funding-explainer" style="margin-top:6px;">
+            Creates a reimbursement liability owed back to you by the household.
+          </div>
+        </div>
+
+        <!-- Category Quick Selection -->
+        <div style="margin-bottom:20px;">
+          <label class="field-label" id="lbl-sheet-cat" style="font-size:12px; margin-bottom:6px;">Category</label>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="tag active" style="padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">Groceries</button>
+            <button type="button" class="tag" style="padding:6px 12px; font-size:12px; font-weight:500; cursor:pointer;">Utilities</button>
+            <button type="button" class="tag" style="padding:6px 12px; font-size:12px; font-weight:500; cursor:pointer;">Dining</button>
+            <button type="button" class="tag" style="padding:6px 12px; font-size:12px; font-weight:500; cursor:pointer;">Transport</button>
+            <button type="button" class="tag" style="padding:6px 12px; font-size:12px; font-weight:500; cursor:pointer;">Health</button>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button id="btn-save-expense" class="button primary" type="button" style="width:100%; height:46px; font-size:15px; font-weight:600;">
+          Save Expense
+        </button>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    import { icons } from "./icons.js";
+    import { formatCurrency } from "./accounting.js";
+
+    // 1. Populate Hairline SVG Icons
+    document.querySelector("#tab-shared-icon").innerHTML = icons.household({ size: 14 });
+    document.querySelector("#tab-personal-icon").innerHTML = icons.pocket({ size: 14 });
+    document.querySelector("#icon-insight-sparkle").innerHTML = icons.sparkles({ size: 18 });
+    document.querySelector("#icon-cart").innerHTML = icons.groceries({ size: 18 });
+    document.querySelector("#icon-bolt").innerHTML = icons.bills({ size: 18 });
+    document.querySelector("#icon-dining").innerHTML = icons.reports({ size: 18 });
+    document.querySelector("#island-mic-icon").innerHTML = icons.voice({ size: 16 });
+    document.querySelector("#island-plus-icon").innerHTML = icons.plus({ size: 16 });
+    document.querySelector("#icon-pocket-fund").innerHTML = icons.pocket({ size: 15 });
+    document.querySelector("#icon-shared-fund").innerHTML = icons.shared({ size: 15 });
+
+    document.querySelector("#nav-icon-home").innerHTML = icons.home({ size: 20 });
+    document.querySelector("#nav-icon-ledger").innerHTML = icons.ledger({ size: 20 });
+    document.querySelector("#nav-icon-insights").innerHTML = icons.insights({ size: 20 });
+    document.querySelector("#nav-icon-household").innerHTML = icons.household({ size: 20 });
+    document.querySelector("#nav-icon-settings").innerHTML = icons.settings({ size: 20 });
+
+    // 2. Interactive Theme Switcher
+    const themeBtn = document.querySelector("#toggle-theme");
+    const themeIcon = document.querySelector("#theme-icon");
+    const themeLabel = document.querySelector("#theme-label");
+
+    themeBtn.addEventListener("click", () => {
+      const isDark = document.documentElement.dataset.theme === "dark";
+      if (isDark) {
+        document.documentElement.dataset.theme = "light";
+        themeIcon.textContent = "🌙";
+        themeLabel.textContent = "Dark Mode";
+      } else {
+        document.documentElement.dataset.theme = "dark";
+        themeIcon.textContent = "☀️";
+        themeLabel.textContent = "Light Mode";
+      }
+    });
+
+    // 3. Interactive Tamil / English Language Switcher (Testing Tamil font rendering & layout elasticity)
+    const langBtn = document.querySelector("#toggle-lang");
+    const langLabel = document.querySelector("#lang-label");
+    let isTamil = false;
+
+    const translations = {
+      en: {
+        title: "Home",
+        shared: "Shared Household",
+        personal: "Personal Pocket",
+        spent: "Spent this month (November)",
+        pacing: "Budget pacing: On track",
+        membersSummary: "Kavi (₹24.5k), Dad (₹12k), Amma (₹6.3k)",
+        recent: "Recent Transactions",
+        seeAll: "See All ›",
+        islandVoice: "Voice",
+        islandAdd: "Add Expense",
+        navHome: "Home",
+        navLedger: "Transactions",
+        navInsights: "Insights",
+        navHousehold: "Household",
+        navSettings: "Settings",
+        newExpense: "New Expense",
+        moneyUsed: "Money Used",
+        personalPocket: "Personal Pocket",
+        sharedFund: "Shared Fund",
+        save: "Save Expense",
+        insightTitle: "Unusual Grocery Spike",
+        insightDesc: "Grocery spending is 28% higher than usual for this time of the month."
+      },
+      ta: {
+        title: "முகப்பு",
+        shared: "குடும்பச் செலவு",
+        personal: "சொந்தப் பணம்",
+        spent: "இந்த மாதச் செலவு (நவம்பர்)",
+        pacing: "வரவுசெலவு நிலை: சீராக உள்ளது",
+        membersSummary: "கவி (₹24.5k), அப்பா (₹12k), அம்மா (₹6.3k)",
+        recent: "சமீபத்திய பரிவர்த்தனைகள்",
+        seeAll: "அனைத்தும் ›",
+        islandVoice: "குரல்",
+        islandAdd: "செலவைச் சேர்",
+        navHome: "முகப்பு",
+        navLedger: "பரிவர்த்தனைகள்",
+        navInsights: "நுண்ணறிவு",
+        navHousehold: "குடும்பம்",
+        navSettings: "அமைப்புகள்",
+        newExpense: "புதிய செலவு",
+        moneyUsed: "பயன்படுத்திய பணம்",
+        personalPocket: "சொந்தக் கைக்காசு",
+        sharedFund: "குடும்பப் பணம்",
+        save: "செலவைச் சேமி",
+        insightTitle: "மளிகைச் செலவு அதிகரிப்பு",
+        insightDesc: "வழக்கத்தை விட இந்த மாத மளிகைச் செலவு 28% அதிகமாக உள்ளது."
+      }
+    };
+
+    langBtn.addEventListener("click", () => {
+      isTamil = !isTamil;
+      document.documentElement.lang = isTamil ? "ta" : "en";
+      const t = isTamil ? translations.ta : translations.en;
+      langLabel.textContent = isTamil ? "English" : "தமிழ் (Tamil)";
+
+      document.querySelector("#page-title").textContent = t.title;
+      document.querySelector("#txt-shared").textContent = t.shared;
+      document.querySelector("#txt-personal").textContent = t.personal;
+      document.querySelector("#txt-spent-label").textContent = t.spent;
+      document.querySelector("#txt-pacing-status").textContent = t.pacing;
+      document.querySelector("#txt-members-summary").textContent = t.membersSummary;
+      document.querySelector("#txt-recent-title").textContent = t.recent;
+      document.querySelector("#txt-see-all").textContent = t.seeAll;
+      document.querySelector("#txt-island-voice").textContent = t.islandVoice;
+      document.querySelector("#txt-island-add").textContent = t.islandAdd;
+      document.querySelector("#nav-txt-home").textContent = t.navHome;
+      document.querySelector("#nav-txt-ledger").textContent = t.navLedger;
+      document.querySelector("#nav-txt-insights").textContent = t.navInsights;
+      document.querySelector("#nav-txt-household").textContent = t.navHousehold;
+      document.querySelector("#nav-txt-settings").textContent = t.navSettings;
+      document.querySelector("#sheet-title").textContent = t.newExpense;
+      document.querySelector("#lbl-sheet-funding").textContent = t.moneyUsed;
+      document.querySelector("#txt-fund-personal").textContent = t.personalPocket;
+      document.querySelector("#txt-fund-shared").textContent = t.sharedFund;
+      document.querySelector("#btn-save-expense").textContent = t.save;
+      document.querySelector("#txt-insight-title").textContent = t.insightTitle;
+      document.querySelector("#txt-insight-desc").textContent = t.insightDesc;
+    });
+
+    // 4. Viewport Toggle (Phone Frame vs Desktop)
+    const viewportBtn = document.querySelector("#toggle-viewport");
+    const viewportLabel = document.querySelector("#viewport-label");
+    const frame = document.querySelector("#device-frame");
+
+    viewportBtn.addEventListener("click", () => {
+      const isDesktop = frame.classList.toggle("desktop-mode");
+      viewportLabel.textContent = isDesktop ? "Phone Viewport" : "Expand Desktop";
+      viewportBtn.classList.toggle("active", isDesktop);
+    });
+
+    // 5. Reduced Motion Toggle
+    const motionBtn = document.querySelector("#toggle-motion");
+    const motionLabel = document.querySelector("#motion-label");
+    let reducedMotion = false;
+
+    motionBtn.addEventListener("click", () => {
+      reducedMotion = !reducedMotion;
+      document.documentElement.dataset.motion = reducedMotion ? "reduced" : "full";
+      motionLabel.textContent = reducedMotion ? "Reduced Motion: On" : "Reduced Motion: Off";
+      motionBtn.classList.toggle("active", reducedMotion);
+    });
+
+    // 6. Interactive Account Switcher (Shared vs Personal)
+    const tabShared = document.querySelector("#tab-shared");
+    const tabPersonal = document.querySelector("#tab-personal");
+    const heroAmount = document.querySelector("#hero-amount");
+
+    tabShared.addEventListener("click", () => {
+      tabShared.classList.add("active");
+      tabPersonal.classList.remove("active");
+      heroAmount.textContent = "₹42,850.00";
+    });
+
+    tabPersonal.addEventListener("click", () => {
+      tabPersonal.classList.add("active");
+      tabShared.classList.remove("active");
+      heroAmount.textContent = "₹8,450.00";
+    });
+
+    // 7. Dismissible Insights
+    const dismissBtn = document.querySelector("#btn-dismiss-insight");
+    const insightAlert = document.querySelector("#insight-alert");
+
+    dismissBtn.addEventListener("click", () => {
+      insightAlert.classList.add("dismissed");
+      setTimeout(() => insightAlert.remove(), 260);
+    });
+
+    // 8. Spring Bottom Sheet Interaction (Open/Close)
+    const addBtn = document.querySelector("#btn-add-island");
+    const sheetBackdrop = document.querySelector("#expense-sheet-backdrop");
+    const closeSheetBtn = document.querySelector("#btn-close-sheet");
+    const amountInput = document.querySelector("#sheet-amount-input");
+
+    function openSheet() {
+      sheetBackdrop.classList.add("visible");
+      sheetBackdrop.setAttribute("aria-hidden", "false");
+      setTimeout(() => amountInput.focus(), 150);
+    }
+
+    function closeSheet() {
+      sheetBackdrop.classList.remove("visible");
+      sheetBackdrop.setAttribute("aria-hidden", "true");
+    }
+
+    addBtn.addEventListener("click", openSheet);
+    closeSheetBtn.addEventListener("click", closeSheet);
+    sheetBackdrop.addEventListener("click", (e) => {
+      if (e.target === sheetBackdrop) closeSheet();
+    });
+
+    // 9. Funding Source Toggle in Sheet
+    const fundPersonalBtn = document.querySelector("#btn-fund-personal");
+    const fundSharedBtn = document.querySelector("#btn-fund-shared");
+    const fundingExplainer = document.querySelector("#txt-funding-explainer");
+
+    fundPersonalBtn.addEventListener("click", () => {
+      fundPersonalBtn.classList.add("primary");
+      fundPersonalBtn.classList.remove("soft");
+      fundSharedBtn.classList.remove("primary");
+      fundSharedBtn.classList.add("soft");
+      fundingExplainer.textContent = "Creates a reimbursement liability owed back to you by the household.";
+    });
+
+    fundSharedBtn.addEventListener("click", () => {
+      fundSharedBtn.classList.add("primary");
+      fundSharedBtn.classList.remove("soft");
+      fundPersonalBtn.classList.remove("primary");
+      fundPersonalBtn.classList.add("soft");
+      fundingExplainer.textContent = "Paid from joint household pool; no personal reimbursement created.";
+    });
+
+    // 10. Add New Expense from Sheet
+    const saveExpenseBtn = document.querySelector("#btn-save-expense");
+    const descInput = document.querySelector("#sheet-desc-input");
+    const feed = document.querySelector("#transaction-feed");
+
+    saveExpenseBtn.addEventListener("click", () => {
+      const amt = parseFloat(amountInput.value) || 0;
+      if (amt <= 0) {
+        amountInput.focus();
+        return;
+      }
+      const desc = descInput.value.trim() || "Household Item";
+      
+      const newCard = document.createElement("div");
+      newCard.className = "hearth-card";
+      newCard.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:12px 14px; animation: slideIn 250ms cubic-bezier(0.16, 1, 0.3, 1); border-left:3px solid var(--accent);";
+      newCard.innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:36px; height:36px; border-radius:10px; background:var(--tint); display:grid; place-items:center; color:var(--ink);">
+            ${icons.groceries({ size: 18 })}
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">${desc}</div>
+            <div class="tiny muted" style="margin-top:2px;">Just now · Paid by You · <span style="color:var(--accent); font-weight:600;">Personal Pocket</span></div>
+          </div>
+        </div>
+        <div class="tabular amount" style="font-size:15px; font-weight:600;">₹${amt.toFixed(2)}</div>
+      `;
+
+      feed.prepend(newCard);
+      closeSheet();
+
+      // Reset fields
+      amountInput.value = "0";
+      descInput.value = "";
+    });
+
+    // Close on Escape key
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && sheetBackdrop.classList.contains("visible")) {
+        closeSheet();
+      }
+    });
+  </script>
+</body>
+</html>

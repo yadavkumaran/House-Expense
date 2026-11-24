@@ -14,6 +14,8 @@ const files = [
   "query-results.js",
   "household-permissions.js",
   "ui-preferences.js",
+  "icons.js",
+  "preview-phase1.html",
   "voice.js",
   "pwa.js",
   "service-worker.js",
