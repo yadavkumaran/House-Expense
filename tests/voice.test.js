@@ -387,6 +387,33 @@ test("strips payment source phrases from description while preserving genuine ph
   assert.equal(d4.payment_source, "PERSONAL");
 });
 
+test("strips payer phrases from description when specified with paid by <member>", () => {
+  const members = [{ user_id: "u_nag", name: "nagarajan" }];
+
+  // Scenario reported by user: "rs.100 for bus expences paid by nagarajan"
+  const r1 = parseVoiceTranscript("rs.100 for bus expences paid by nagarajan", { members, currentUserId: "u1", now: fixedDate });
+  assert.equal(r1.amount, "100");
+  assert.equal(r1.description, "Bus expences");
+  assert.equal(r1.paid_by, "u_nag");
+  assert.equal(r1.category, "trans");
+
+  // Standard spelling "100 for bus expenses paid by nagarajan"
+  const r2 = parseVoiceTranscript("100 for bus expenses paid by nagarajan", { members, currentUserId: "u1", now: fixedDate });
+  assert.equal(r2.amount, "100");
+  assert.equal(r2.description, "Bus expenses");
+  assert.equal(r2.paid_by, "u_nag");
+
+  // "500 for groceries paid by Mom"
+  const r3 = parseVoiceTranscript("500 for groceries paid by Mom", { members: [], currentUserId: "u1", now: fixedDate });
+  assert.equal(r3.amount, "500");
+  assert.equal(r3.description, "Groceries");
+
+  // "200 for snacks by dad"
+  const r4 = parseVoiceTranscript("200 for snacks by dad", { members: [], currentUserId: "u1", now: fixedDate });
+  assert.equal(r4.amount, "200");
+  assert.equal(r4.description, "Snacks");
+});
+
 test("accurately parses relative dates in English, Tanglish, and Tamil", () => {
   // Reference fixedDate is 2026-10-17
   // 1. Yesterday -> 2026-10-16

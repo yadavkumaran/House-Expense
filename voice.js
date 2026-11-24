@@ -249,7 +249,7 @@ export function parseRelativeDate(text, now = new Date()) {
   return "";
 }
 
-export function cleanExpenseDescription(text) {
+export function cleanExpenseDescription(text, { members = [] } = {}) {
   if (!text || typeof text !== "string") return "";
   let s = text.trim();
 
@@ -278,6 +278,23 @@ export function cleanExpenseDescription(text) {
   s = s.replace(/(?:பொதுவான\s*|பொதுப்\s*|குடும்பப்\s*)?வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ");
   s = s.replace(/சொந்த\s*காசு|வீட்டு\s*காசு/gu, " ");
 
+  // 2b. Remove payer phrases ("paid by <name>", "bought by <name>", "spent by <name>", "by <name>")
+  s = s.replace(/\b(?:paid|bought|spent)\s+by\s+[a-zA-Z0-9_\u0B80-\u0BFF-]+\b/gui, " ");
+  s = s.replace(/\b(?:paid|bought|spent)\s+by\b/gi, " ");
+  s = s.replace(/\bby\s+(?:me|myself|him|her|them|[a-zA-Z0-9_\u0B80-\u0BFF-]+)\b/gui, " ");
+  s = s.replace(/(?:செலுத்தியவர்|வாங்கியவர்|மூலம்\s+செலுத்தப்பட்டது)\s*[:=]?\s*[\u0B80-\u0BFFa-zA-Z0-9_-]+/gu, " ");
+
+  // Remove known registered member names if explicitly present
+  if (Array.isArray(members)) {
+    const esc = (m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const mem of members) {
+      const name = (mem?.name || mem?.display_name || "").trim();
+      if (name && name.length >= 2) {
+        s = s.replace(new RegExp(`\\b(?:paid\\s+by|bought\\s+by|by)?\\s*${esc(name)}\\b`, "gui"), " ");
+      }
+    }
+  }
+
   // 3. Remove date words (relative dates)
   s = s.replace(/\b(?:day\s+before\s+yesterday|munthanethu|muntha\s+naal)\b|முந்தாநேற்று|முந்தைய\s+நாள்/gui, " ");
   s = s.replace(/\b(?:yesterday|nethu|netru)\b|நேற்று/gui, " ");
@@ -286,7 +303,7 @@ export function cleanExpenseDescription(text) {
 
   // 4. Remove verbs, prepositions, amounts, and currency terms
   s = s.replace(/\b(i|we|my|naan|nan|en|enakku|ennoda)\s+(spent|paid|pay|add|record|bought|vanginen|vanginar|vanganga|kattinen|poten)\b/gi, " ");
-  s = s.replace(/\b(spent|paid|pay|add|record|bought|expense|vanginen|vanginar|vanganga|kattinen|poten)\b/gi, " ");
+  s = s.replace(/\b(spent|paid|pay|add|record|bought|vanginen|vanginar|vanganga|kattinen|poten)\b/gi, " ");
   s = s.replace(/\b(rupees?|rs\.?|inr|ruba(?:i)?|rooba(?:i)?)\b/gi, " ");
   s = s.replace(/₹|ரூபாய்க்கு|ரூபாய்/gu, " ");
   s = s.replace(/எனது|என்னுடைய|நான்|செலவு|செலுத்தினேன்|செலுத்தினார்|செலுத்தினாங்க|வாங்கினேன்|வாங்கினார்|வாங்கினாங்க|வாங்கினார்கள்/gu, " ");
@@ -300,10 +317,10 @@ export function cleanExpenseDescription(text) {
 
   // 7. Clean punctuation and dangling prepositions
   s = s.replace(/[.,!?]/g, " ");
-  s = s.replace(/\b(?:for|on|in|at)\b/gi, " ");
+  s = s.replace(/\b(?:for|on|in|at|by)\b/gi, " ");
   s = s.replace(/\s+/g, " ").trim();
-  s = s.replace(/^(?:for|from|using|on|in|to|ku|la|at|the|a|an)\s+/i, "").trim();
-  s = s.replace(/\s+(?:for|from|using|on|in|to|ku|la|at|the|a|an)$/i, "").trim();
+  s = s.replace(/^(?:for|from|using|on|in|to|ku|la|at|by|the|a|an)\s+/i, "").trim();
+  s = s.replace(/\s+(?:for|from|using|on|in|to|ku|la|at|by|the|a|an)$/i, "").trim();
 
   // Capitalize first letter
   if (s) {
@@ -392,7 +409,7 @@ export function parseVoiceTranscript(transcript, { members = [], currentUserId =
   const multiItems = parseMultiItems(text);
   if (multiItems && multiItems.length >= 2) {
     const expenses = multiItems.map(item => {
-      const cleanDesc = cleanExpenseDescription(item.label);
+      const cleanDesc = cleanExpenseDescription(item.label, { members });
       const cat = detectCategory(cleanDesc) || detectCategory(item.label) || "oth";
       return {
         description: cleanDesc || item.label,
@@ -442,7 +459,7 @@ export function parseVoiceTranscript(transcript, { members = [], currentUserId =
 
   if (amountResult?.amount) {
     // Clean description from text using unified cleaner
-    description = cleanExpenseDescription(text);
+    description = cleanExpenseDescription(text, { members });
   }
 
   // Ambiguous statement check (e.g. "I spent 200")

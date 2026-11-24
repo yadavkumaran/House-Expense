@@ -19,9 +19,27 @@ export function sanitizeConfidence(val, defaultScore = 0.5) {
   return Math.max(0, Math.min(1, Math.round(num * 100) / 100));
 }
 
-export function cleanDescriptionFromPaymentSource(text) {
+export function cleanDescriptionFromPaymentSource(text, { members = [] } = {}) {
   if (!text || typeof text !== "string") return "";
   let s = text.trim();
+
+  // 1. Remove payer phrases ("paid by <name>", "bought by <name>", "by <name>")
+  s = s.replace(/\b(?:paid|bought|spent)\s+by\s+[a-zA-Z0-9_\u0B80-\u0BFF-]+\b/gui, " ");
+  s = s.replace(/\b(?:paid|bought|spent)\s+by\b/gi, " ");
+  s = s.replace(/\bby\s+(?:me|myself|him|her|them|[a-zA-Z0-9_\u0B80-\u0BFF-]+)\b/gui, " ");
+  s = s.replace(/(?:செலுத்தியவர்|வாங்கியவர்|மூலம்\s+செலுத்தப்பட்டது)\s*[:=]?\s*[\u0B80-\u0BFFa-zA-Z0-9_-]+/gu, " ");
+
+  if (Array.isArray(members)) {
+    const esc = (m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (const mem of members) {
+      const name = (mem?.name || mem?.display_name || "").trim();
+      if (name && name.length >= 2) {
+        s = s.replace(new RegExp(`\\b(?:paid\\s+by|bought\\s+by|by)?\\s*${esc(name)}\\b`, "gui"), " ");
+      }
+    }
+  }
+
+  // 2. Remove payment source phrases:
   s = s.replace(/\b(?:from\s+|using\s+)?shared\s+household(?:\s+funds?|\s+money|\s+la)?\b/gi, " ");
   s = s.replace(/\b(?:from\s+|using\s+)?household\s+money(?:\s+la)?\b/gi, " ");
   s = s.replace(/\b(?:from\s+|using\s+)?shared\s+funds?(?:\s+la)?\b/gi, " ");
@@ -35,9 +53,10 @@ export function cleanDescriptionFromPaymentSource(text) {
   s = s.replace(/(?:என்\s*|என்னுடைய\s*)?சொந்தப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ");
   s = s.replace(/(?:பொதுவான\s*|பொதுப்\s*|குடும்பப்\s*)?வீட்டுப்?\s*பண(?:த்தில்|த்திலிருந்து|ம்)?/gu, " ");
   s = s.replace(/சொந்த\s*காசு|வீட்டு\s*காசு/gu, " ");
+  s = s.replace(/\b(?:for|on|in|at|by)\b/gi, " ");
   s = s.replace(/\s+/g, " ").trim();
-  s = s.replace(/^(?:for|from|using|on|in|to|ku|la|at|the|a|an)\s+/i, "").trim();
-  s = s.replace(/\s+(?:for|from|using|on|in|to|ku|la|at|the|a|an)$/i, "").trim();
+  s = s.replace(/^(?:for|from|using|on|in|to|ku|la|at|by|the|a|an)\s+/i, "").trim();
+  s = s.replace(/\s+(?:for|from|using|on|in|to|ku|la|at|by|the|a|an)$/i, "").trim();
   if (s) s = s.charAt(0).toUpperCase() + s.slice(1);
   return s;
 }
@@ -67,7 +86,7 @@ export function validateAndSanitizeExpenses(rawExpenses, { members = [], allowed
     // Description validation
     let description = typeof item.description === "string" ? item.description.trim() : "";
     if (description) {
-      description = cleanDescriptionFromPaymentSource(description);
+      description = cleanDescriptionFromPaymentSource(description, { members });
     }
     if (description.length > 120) description = description.slice(0, 120);
     if (!description) {

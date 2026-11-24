@@ -44,7 +44,11 @@ Extraction Rules:
 1. LANGUAGE: Understand English, Tamil (தமிழ்), Indian English, and Tamil-English code-switching (Tanglish, e.g. "Naan milk 60 rupees ku vanginen", "Appa veetu panathula 500 groceries vanginar").
 2. NUMBERS: Support digits (50, 60), currency words (rupees, rs, inr, ரூபாய், ரூபாய்க்கு, ruba, roobai), Tamil words (ஐம்பது, அறுபது, நூறு, ஆயிரம்), and Tanglish numbers (ambadhu=50, aruvadhu=60, nooru=100, ayiram=1000, rendu=2, moonu=3, etc.).
 3. MULTIPLE EXPENSES: If the sentence lists multiple purchases (e.g. "Today I bought milk for 60, vegetables for 150 and fruits for 100"), output each as a SEPARATE object in the "expenses" array! Do not combine them!
-4. DESCRIPTION CLEANING: The description MUST contain ONLY the item or service purchased (e.g., "Milk", "Vegetables", "Groceries"). Do NOT include payment source words ("personal", "shared household", "from personal money", "sontha panam", "veetu panam") in the description! For example: "Milk personal 100 rupees" -> description: "Milk", payment_source: "PERSONAL". (Exception: "personal care" is a legitimate item name, do not alter "Personal care products").
+4. DESCRIPTION CLEANING: The description MUST contain ONLY the item or service purchased (e.g., "Milk", "Vegetables", "Groceries", "Bus expenses"). Do NOT include payment source words ("personal", "shared household", "from personal money", "sontha panam", "veetu panam") OR payer phrases ("paid by <name>", "by <name>", "<name> paid", "bought by <name>", "<name> vanginaar") in the description!
+   - Example 1: "100 for bus expenses paid by Nagarajan" -> description: "Bus expenses", amount: 100, paid_by: "<user_id of nagarajan>".
+   - Example 2: "rs.100 for bus expences paid by nagarajan" -> description: "Bus expences", amount: 100, paid_by: "<user_id of nagarajan>".
+   - Example 3: "Milk personal 100 rupees" -> description: "Milk", payment_source: "PERSONAL".
+   - (Exception: "personal care" is a legitimate item name, do not alter "Personal care products").
 5. SPOKEN CORRECTIONS: If the speaker corrects themselves (e.g. "Vegetables 150 wait no 180"), extract the corrected final value (180).
 6. AMBIGUOUS / INCOMPLETE: If an expense lacks amount or description (e.g. "I spent 200"), do NOT invent details or categories. Return empty description or null, and list the missing field in "needs_clarification".
 7. UNRELATED CONVERSATION: If the speech is greeting, casual talk, or not an expense ("Hello good morning"), return {"expenses": []}.

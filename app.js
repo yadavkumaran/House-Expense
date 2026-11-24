@@ -1,4 +1,4 @@
-import { diagnoseTranscriptionEndpoint, parseVoiceTranscript, transcriptionFailureKey } from "./voice.js";
+import { cleanExpenseDescription, diagnoseTranscriptionEndpoint, parseVoiceTranscript, transcriptionFailureKey } from "./voice.js";
 import { localMonthKey, renderExpenseCalendar } from "./calendar-feature/calendar.js";
 import {
   toMinorUnits,
@@ -3004,7 +3004,10 @@ async function applyVoiceResult(session) {
 }
 
 function showVoiceReviewForm({ transcript, expenses = [], isAi = false }) {
-  let currentExpenses = expenses.map(e => ({ ...e }));
+  let currentExpenses = expenses.map(e => ({
+    ...e,
+    description: cleanExpenseDescription(e.description, { members: state.members }) || e.description
+  }));
   let currentTranscript = transcript;
 
   function renderModal() {
@@ -4534,7 +4537,33 @@ async function handleAction(button) {
 }
 
 // APP INITIALIZATION
+function initHearthIntro() {
+  const introEl = document.getElementById("hearth-intro");
+  if (!introEl) return;
+
+  if (sessionStorage.getItem("hearth_intro_played")) {
+    introEl.remove();
+    return;
+  }
+  sessionStorage.setItem("hearth_intro_played", "1");
+
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    introEl.classList.add("hearth-intro-exit");
+    setTimeout(() => {
+      introEl.remove();
+    }, 380);
+  };
+
+  introEl.addEventListener("click", dismiss, { passive: true });
+  introEl.addEventListener("touchstart", dismiss, { passive: true });
+  setTimeout(dismiss, 1300);
+}
+
 async function start() {
+  initHearthIntro();
   let config;
   try {
     config = await import("./supabase-config.js");
