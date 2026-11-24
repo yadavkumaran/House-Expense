@@ -2199,7 +2199,17 @@ async function fetchAllRows(query, pageSize = 1000) {
 
 async function bootstrap() {
   state.loading = true;
-  const { data: { user } } = await state.client.auth.getUser();
+  let user = null;
+  try {
+    const { data: { session: localSession } } = await state.client.auth.getSession();
+    user = localSession?.user || null;
+  } catch {}
+  if (!user) {
+    try {
+      const { data: userData } = await state.client.auth.getUser();
+      user = userData?.user || null;
+    } catch {}
+  }
   state.user = user;
   if (!user) {
     state.subscription?.unsubscribe();
@@ -4537,59 +4547,84 @@ async function handleAction(button) {
 }
 
 // APP INITIALIZATION
+let dismissHearthIntro = null;
+
 function initHearthIntro() {
   const introEl = document.getElementById("hearth-intro");
   if (!introEl) return;
 
-  if (sessionStorage.getItem("hearth_intro_played")) {
-    introEl.remove();
-    return;
-  }
-  sessionStorage.setItem("hearth_intro_played", "1");
-
+  const startTime = Date.now();
   let dismissed = false;
-  const dismiss = () => {
+
+  const doDismiss = () => {
     if (dismissed) return;
     dismissed = true;
     introEl.classList.add("hearth-intro-exit");
     setTimeout(() => {
-      introEl.remove();
+      try { introEl.remove(); } catch {}
     }, 380);
   };
 
-  introEl.addEventListener("click", dismiss, { passive: true });
-  introEl.addEventListener("touchstart", dismiss, { passive: true });
-  setTimeout(dismiss, 1300);
+  dismissHearthIntro = () => {
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(0, 1050 - elapsed);
+    setTimeout(doDismiss, remaining);
+  };
+
+  // Instant skip on user tap or click
+  introEl.addEventListener("click", doDismiss, { passive: true });
+  introEl.addEventListener("touchstart", doDismiss, { passive: true });
+
+  // Safe upper bound so intro never hangs
+  setTimeout(doDismiss, 1350);
 }
 
 async function start() {
   initHearthIntro();
-  let config;
   try {
-    config = await import("./supabase-config.js");
-  } catch (error) {
-    renderConfigError(new Error(`Copy supabase-config.js.example to supabase-config.js. ${error.message}`));
-    return;
-  }
-
-  const { SUPABASE_URL, SUPABASE_ANON_KEY } = config;
-  if (!SUPABASE_URL || SUPABASE_URL.includes("YOUR_PROJECT") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE")) {
-    renderConfigError(new Error("Supabase project credentials have not been configured."));
-    return;
-  }
-
-  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-  state.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  state.client.auth.onAuthStateChange((event, session) => {
-    if (event !== "INITIAL_SESSION" && session?.user?.id !== state.user?.id) {
-      setTimeout(() => {
-        if (session?.user?.id !== state.user?.id) bootstrap().catch(showError);
-      }, 0);
+    let config;
+    try {
+      config = await import("./supabase-config.js");
+    } catch (error) {
+      renderConfigError(new Error(`Copy supabase-config.js.example to supabase-config.js. ${error.message}`));
+      return;
     }
-  });
 
-  await bootstrap();
+    const { SUPABASE_URL, SUPABASE_ANON_KEY } = config;
+    if (!SUPABASE_URL || SUPABASE_URL.includes("YOUR_PROJECT") || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE")) {
+      renderConfigError(new Error("Supabase project credentials have not been configured."));
+      return;
+    }
+
+    // Fast local Supabase client initialization (0ms network delay)
+    let createClient = window.supabase?.createClient;
+    if (!createClient) {
+      try {
+        const localMod = await import("./vendor/supabase.js");
+        createClient = localMod.createClient || localMod.default?.createClient;
+      } catch {}
+    }
+    if (!createClient) {
+      const remote = await import("https://esm.sh/@supabase/supabase-js@2");
+      createClient = remote.createClient;
+    }
+
+    state.client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    state.client.auth.onAuthStateChange((event, session) => {
+      if (event !== "INITIAL_SESSION" && session?.user?.id !== state.user?.id) {
+        setTimeout(() => {
+          if (session?.user?.id !== state.user?.id) bootstrap().catch(showError);
+        }, 0);
+      }
+    });
+
+    await bootstrap();
+  } catch (err) {
+    showError(err);
+  } finally {
+    dismissHearthIntro?.();
+  }
 }
 
 // EVENT LISTENERS

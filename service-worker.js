@@ -11,6 +11,7 @@ const SHELL_FILES = [
   "./ui-preferences.js",
   "./voice.js",
   "./pwa.js",
+  "./vendor/supabase.js",
   "./styles.css",
   "./calendar-feature/calendar.js",
   "./calendar-feature/calendar.css",

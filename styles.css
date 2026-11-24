@@ -1163,7 +1163,7 @@ textarea.field {
 }
 
 .hearth-intro-title {
-  font-family: 'Bricolage Grotesque', sans-serif;
+  font-family: 'Bricolage Grotesque', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-weight: 700;
   font-size: 28px;
   letter-spacing: 0.22em;
@@ -1174,7 +1174,7 @@ textarea.field {
 }
 
 .hearth-intro-sub {
-  font-family: 'Instrument Sans', sans-serif;
+  font-family: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.32em;

@@ -42,6 +42,16 @@ for (const file of ["calendar.js", "calendar.css"]) {
   }
 }
 
+for (const file of ["supabase.js"]) {
+  const destination = join(output, "vendor", file);
+  await mkdir(dirname(destination), { recursive: true });
+  try {
+    await copyFile(join(root, "vendor", file), destination);
+  } catch (error) {
+    throw new Error(`Could not prepare vendor/${file} for Android packaging: ${error.message}`, { cause: error });
+  }
+}
+
 for (const icon of ["hearth-logo.png", "hearth-mark.png", "hearth-192.png", "hearth-512.png", "hearth-maskable-512.png"]) {
   const destination = join(output, "icons", icon);
   await mkdir(dirname(destination), { recursive: true });
